@@ -27,6 +27,7 @@ export class AuthController {
     @Body('password') password: string,
     @Res({ passthrough: true }) res: Response,
   ) {
+    console.log('Logging user in...');
     const { user, token } = await this.authService.login(email, password);
 
     // Set JWT in HttpOnly cookie
@@ -34,15 +35,16 @@ export class AuthController {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+      path: '/',
       maxAge: Number(process.env.JWT_EXPIRES_IN),
     });
 
-    // Optionally still return the user (but no need to return token anymore)
     return { user };
   }
 
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
+    console.log('Logging user out...');
     res.clearCookie('access_token');
     return { success: true };
   }

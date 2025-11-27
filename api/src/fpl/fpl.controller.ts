@@ -10,13 +10,11 @@ export class FplController {
 
   @Post('sync-team')
   async syncTeam(@Req() req: AuthRequest) {
-    const userId = req.user.userId;
-    return this.fplService.syncTeamForUser(userId);
+    return this.fplService.syncTeamForUser(req.user.userId);
   }
 
   @Get('team')
   async getTeam(@Req() req: AuthRequest) {
-    const userId = req.user.userId;
-    return this.fplService.getTeamOverviewForUser(userId);
+    return this.fplService.getTeamOverviewForUser(req.user.userId);
   }
 }

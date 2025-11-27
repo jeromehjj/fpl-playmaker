@@ -109,7 +109,7 @@ import { useRouter } from 'vue-router';
 import { useApi } from '../composables/useApi';
 
 const router = useRouter();
-const { get } = useApi();
+const { get, post } = useApi();
 
 const isClient = typeof window !== 'undefined';
 
@@ -164,8 +164,14 @@ const fetchTeam = async () => {
   }
 };
 
-const logout = () => {
-  router.push('/');
+const logout = async () => {
+    try {
+        await post('/auth/logout');
+    } catch (e) {
+        console.log('Log out error: ', e);
+    } finally {
+        router.push('/');
+    }
 };
 
 onMounted(() => {
