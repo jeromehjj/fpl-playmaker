@@ -113,14 +113,10 @@ const onRegister = async () => {
     });
 
     // auto-login after registration
-    const res = await post<LoginResponse>(
+    await post(
       '/auth/login',
       { email: email.value, password: password.value },
     );
-
-    if (isClient) {
-      window.localStorage.setItem('auth_token', res.token);
-    }
 
     router.push('/dashboard');
   } catch (e: any) {

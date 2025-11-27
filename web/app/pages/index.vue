@@ -84,15 +84,12 @@ const onSubmit = async () => {
   error.value = null;
 
   try {
-    const res = await post<LoginResponse>(
+    await post(
       '/auth/login',
       { email: email.value, password: password.value },
     );
 
-    if (isClient) {
-      window.localStorage.setItem('auth_token', res.token);
-    }
-
+    // No localStorage token needed; cookie is set by backend
     router.push('/dashboard');
   } catch (e: any) {
     console.error('Login error:', e);

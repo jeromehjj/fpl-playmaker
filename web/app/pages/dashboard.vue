@@ -152,12 +152,9 @@ const fetchTeam = async () => {
   loading.value = true;
   error.value = null;
   try {
-    team.value = await get<TeamOverview>('/fpl/team', { auth: true });
+    team.value = await get<TeamOverview>('/fpl/team');
   } catch (e: any) {
     if (e?.status === 401) {
-      if (isClient) {
-        window.localStorage.removeItem('auth_token');
-      }
       router.push('/');
       return;
     }
@@ -168,9 +165,6 @@ const fetchTeam = async () => {
 };
 
 const logout = () => {
-  if (isClient) {
-    window.localStorage.removeItem('auth_token');
-  }
   router.push('/');
 };
 

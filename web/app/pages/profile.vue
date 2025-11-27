@@ -97,15 +97,12 @@ const fetchProfile = async () => {
   success.value = null;
 
   try {
-    const res = await get<UserProfile>('/users/me', { auth: true });
+    const res = await get<UserProfile>('/users/me');
     profile.value = res;
     fplTeamId.value = res.fplTeamId ?? '';
   } catch (e: any) {
     console.error('fetchProfile error:', e);
     if (e?.status === 401) {
-      if (isClient) {
-        window.localStorage.removeItem('auth_token');
-      }
       router.push('/');
       return;
     }
@@ -125,16 +122,13 @@ const onSave = async () => {
       fplTeamId: fplTeamId.value.trim() === '' ? null : fplTeamId.value.trim(),
     };
 
-    const updated = await put<UserProfile>('/users/me', body, { auth: true });
+    const updated = await put<UserProfile>('/users/me', body);
     profile.value = updated;
     fplTeamId.value = updated.fplTeamId ?? '';
     success.value = 'Profile updated.';
   } catch (e: any) {
     console.error('updateMe error:', e);
     if (e?.status === 401) {
-      if (isClient) {
-        window.localStorage.removeItem('auth_token');
-      }
       router.push('/');
       return;
     }
