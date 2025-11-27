@@ -64,7 +64,6 @@ interface LoginResponse {
 }
 
 const onSubmit = async () => {
-  console.log('onSubmit called'); // <-- TEMP debug log
 
   loading.value = true;
   error.value = null;

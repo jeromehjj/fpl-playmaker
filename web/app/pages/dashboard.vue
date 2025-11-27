@@ -9,12 +9,17 @@
           </p>
         </div>
 
-        <button
-          class="text-sm text-red-600 underline"
-          @click="logout"
-        >
-          Log out
-        </button>
+        <div class="flex items-center gap-3">
+            <NuxtLink to="/profile" class="text-sm text-blue-600 underline">
+            Profile
+            </NuxtLink>
+
+            <button
+            class="text-sm text-red-600 underline"
+            @click="logout">
+            Log out
+            </button>
+        </div>
       </header>
 
       <section v-if="loading" class="text-sm text-gray-600">
@@ -153,7 +158,7 @@ const fetchTeam = async () => {
       if (isClient) {
         window.localStorage.removeItem('auth_token');
       }
-      router.push('/login');
+      router.push('/');
       return;
     }
     error.value = e?.data?.message ?? 'Failed to load team data.';
@@ -166,7 +171,7 @@ const logout = () => {
   if (isClient) {
     window.localStorage.removeItem('auth_token');
   }
-  router.push('/login');
+  router.push('/');
 };
 
 onMounted(() => {
