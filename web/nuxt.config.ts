@@ -1,9 +1,9 @@
 export default defineNuxtConfig({
-  srcDir: 'app',
   devtools: { enabled: true },
   runtimeConfig: {
     public: {
-      apiBase: 'http://localhost:3001',
+      apiBaseUrl:
+        process.env.NUXT_PUBLIC_API_BASE_URL || 'http://localhost:3001',
     },
   },
 });
