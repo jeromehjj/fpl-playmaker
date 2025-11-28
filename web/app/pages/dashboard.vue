@@ -7,9 +7,24 @@
           <p class="text-sm text-gray-600">
             Overview for your FPL team
           </p>
+          <p
+            v-if="team?.lastSyncedAt"
+            class="text-xs text-gray-500 mt-1"
+            >
+            Last synced:
+            {{ new Date(team.lastSyncedAt).toLocaleString() }}
+        </p>
         </div>
 
         <div class="flex items-center gap-3">
+            <button
+                class="text-xs px-3 py-1 border rounded bg-white hover:bg-gray-50"
+                @click="refreshTeam"
+                :disabled="syncing"
+                >
+                <span v-if="!syncing">Refresh from FPL</span>
+                <span v-else>Syncing...</span>
+            </button>
             <NuxtLink to="/profile" class="text-sm text-blue-600 underline">
             Profile
             </NuxtLink>
@@ -142,11 +157,13 @@ interface TeamOverview {
   gwRank: number;
   currentEvent: number;
   leagues: League[];
+  lastSyncedAt: string | null;
 }
 
 const team = ref<TeamOverview | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
+const syncing = ref(false);
 
 const fetchTeam = async () => {
   loading.value = true;
@@ -164,11 +181,27 @@ const fetchTeam = async () => {
   }
 };
 
+const refreshTeam = async () => {
+  syncing.value = true;
+  error.value = null;
+  try {
+    // Trigger a fresh sync from FPL (updates DB)
+    await post('/fpl/sync-team');
+    // Then reload overview from DB
+    await fetchTeam();
+  } catch (e: any) {
+    console.error('refreshTeam error:', e);
+    error.value = e?.data?.message ?? 'Failed to refresh team data.';
+  } finally {
+    syncing.value = false;
+  }
+};
+
 const logout = async () => {
     try {
         await post('/auth/logout');
     } catch (e) {
-        console.log('Log out error: ', e);
+        console.error('Log out error: ', e);
     } finally {
         router.push('/');
     }

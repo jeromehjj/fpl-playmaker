@@ -27,7 +27,6 @@ export class AuthController {
     @Body('password') password: string,
     @Res({ passthrough: true }) res: Response,
   ) {
-    console.log('Logging user in...');
     const { user, token } = await this.authService.login(email, password);
 
     // Set JWT in HttpOnly cookie
@@ -44,7 +43,6 @@ export class AuthController {
 
   @Post('logout')
   logout(@Res({ passthrough: true }) res: Response) {
-    console.log('Logging user out...');
     res.clearCookie('access_token');
     return { success: true };
   }

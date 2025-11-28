@@ -72,5 +72,6 @@ export function mapEntryToOverview(
     gwRank: entry.summary_event_rank,
     currentEvent: entry.current_event,
     leagues,
+    lastSyncedAt: null,
   };
 }

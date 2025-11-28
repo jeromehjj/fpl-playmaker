@@ -12,4 +12,5 @@ export interface FplTeamOverviewDto {
   gwRank: number;
   currentEvent: number;
   leagues: FplLeagueDto[];
+  lastSyncedAt: string | null;
 }

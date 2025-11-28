@@ -72,7 +72,7 @@ export class FplService {
     userId: number,
     teamId: string,
     raw: RawFplEntry,
-  ): Promise<void> {
+  ): Promise<FplTeam> {
     const { user } = await this.getUserAndTeamIdOrThrow(userId);
     const overview = mapEntryToOverview(teamId, raw);
 
@@ -141,6 +141,8 @@ export class FplService {
     if (leagueEntities.length > 0) {
       await this.leagueRepository.save(leagueEntities);
     }
+
+    return savedTeam;
   }
 
   /**
@@ -149,7 +151,7 @@ export class FplService {
    */
   private async getOrSyncRawEntryForUser(
     userId: number,
-  ): Promise<{ teamId: string; raw: RawFplEntry }> {
+  ): Promise<{ teamId: string; raw: RawFplEntry; lastSyncedAt: Date | null }> {
     // Try DB first
     const existingTeam = await this.teamRepository.findOne({
       where: { user: { id: userId } },
@@ -159,13 +161,21 @@ export class FplService {
       return {
         teamId: existingTeam.entryId,
         raw: existingTeam.raw as RawFplEntry,
+        lastSyncedAt: existingTeam.lastSyncedAt ?? null,
       };
     }
 
     // If no snapshot, fetch from FPL and save
     const fresh = await this.fetchRawEntryForUser(userId);
-    await this.saveSnapshotForUser(userId, fresh.teamId, fresh.raw);
-    return fresh;
+    const savedTeam = await this.saveSnapshotForUser(
+      userId,
+      fresh.teamId,
+      fresh.raw,
+    );
+    return {
+      ...fresh,
+      lastSyncedAt: savedTeam.lastSyncedAt,
+    };
   }
 
   /**
@@ -182,7 +192,13 @@ export class FplService {
    * Uses DB snapshot if available; otherwise syncs once then returns overview.
    */
   async getTeamOverviewForUser(userId: number): Promise<FplTeamOverviewDto> {
-    const { teamId, raw } = await this.getOrSyncRawEntryForUser(userId);
-    return mapEntryToOverview(teamId, raw);
+    const { teamId, raw, lastSyncedAt } =
+      await this.getOrSyncRawEntryForUser(userId);
+    const base = mapEntryToOverview(teamId, raw);
+
+    return {
+      ...base,
+      lastSyncedAt: lastSyncedAt ? lastSyncedAt.toISOString() : null,
+    };
   }
 }
