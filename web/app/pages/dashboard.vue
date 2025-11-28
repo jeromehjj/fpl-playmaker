@@ -41,6 +41,19 @@
         Loading team data...
       </section>
 
+      <!-- No team synced yet -->
+      <section v-else-if="noTeam" class="space-y-2 text-sm text-gray-700">
+        <p class="font-medium">No FPL team found yet.</p>
+        <p>
+          To get started, go to your
+          <NuxtLink to="/profile" class="text-blue-600 underline">
+            profile
+          </NuxtLink>
+          and enter your FPL Team ID. Then come back here and click
+          <span class="font-semibold">“Refresh from FPL”</span>.
+        </p>
+      </section>
+
       <section v-else-if="error" class="text-sm text-red-600">
         {{ error }}
       </section>
@@ -126,8 +139,6 @@ import { useApi } from '../composables/useApi';
 const router = useRouter();
 const { get, post } = useApi();
 
-const isClient = typeof window !== 'undefined';
-
 interface League {
   id: number;
   name: string;
@@ -160,6 +171,7 @@ interface TeamOverview {
   lastSyncedAt: string | null;
 }
 
+const noTeam = ref(false);
 const team = ref<TeamOverview | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
@@ -168,6 +180,8 @@ const syncing = ref(false);
 const fetchTeam = async () => {
   loading.value = true;
   error.value = null;
+  noTeam.value = false;
+
   try {
     team.value = await get<TeamOverview>('/fpl/team');
   } catch (e: any) {
@@ -175,6 +189,15 @@ const fetchTeam = async () => {
       router.push('/');
       return;
     }
+
+    // No FPL team synced yet
+    if (e?.status === 400) {
+      team.value = null;
+      noTeam.value = true;
+      return;
+    }
+
+    console.error('fetchTeam error:', e);
     error.value = e?.data?.message ?? 'Failed to load team data.';
   } finally {
     loading.value = false;
