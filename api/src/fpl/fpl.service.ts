@@ -168,14 +168,21 @@ export class FplService {
   async listPlayers(
     options: ListPlayersOptions = {},
   ): Promise<FplPlayerListItemDto[]> {
-    const { clubExternalId, position, search, limit = 50 } = options;
+    const {
+      clubExternalId,
+      position,
+      search,
+      offset = 0,
+      limit = 50,
+    } = options;
 
     const qb = this.playerRepository
       .createQueryBuilder('player')
       .leftJoinAndSelect('player.club', 'club')
       .orderBy('player.nowCost', 'DESC')
       .addOrderBy('player.webName', 'ASC')
-      .limit(Math.min(Math.max(limit, 1), 200)); // guard limits
+      .limit(Math.min(Math.max(limit, 1), 200)) // guard limits
+      .offset(Math.max(offset, 0));
 
     if (clubExternalId) {
       qb.andWhere('club.externalId = :clubExternalId', { clubExternalId });

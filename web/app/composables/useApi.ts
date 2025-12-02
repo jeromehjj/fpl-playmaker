@@ -1,11 +1,20 @@
 export const useApi = () => {
   const config = useRuntimeConfig();
   const baseURL = config.public.apiBaseUrl as string;
+  const cleanParams = (params?: Record<string, any>) =>
+    params
+      ? Object.fromEntries(
+          Object.entries(params).filter(
+            ([, v]) => v !== undefined && v !== null && v !== '',
+          ),
+        )
+      : undefined;
 
-  const get = async <T>(path: string) => {
+  const get = async <T>(path: string, params?: Record<string, any>): Promise<T> => {
     return $fetch<T>(path, {
       baseURL,
       credentials: 'include', // important: send cookies
+      params: cleanParams(params) // Accept req params
     });
   };
 

@@ -4,5 +4,6 @@ export type ListPlayersOptions = {
   clubExternalId?: number;
   position?: FplPosition;
   search?: string;
+  offset?: number;
   limit?: number;
 };

@@ -25,9 +25,11 @@ export class FplController {
     @Query('position') position?: FplPosition,
     @Query('search') search?: string,
     @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
   ) {
     const parsedClubId = clubId ? Number(clubId) : undefined;
     const parsedLimit = limit ? Number(limit) : undefined;
+    const parsedOffset = offset ? Number(offset) : undefined;
 
     const validPositions: FplPosition[] = ['GK', 'DEF', 'MID', 'FWD'];
     const normalizedPosition = validPositions.includes(position as FplPosition)
@@ -41,6 +43,8 @@ export class FplController {
       search,
       limit:
         parsedLimit && !Number.isNaN(parsedLimit) ? parsedLimit : undefined,
+      offset:
+        parsedOffset && !Number.isNaN(parsedOffset) ? parsedOffset : undefined,
     });
   }
 
