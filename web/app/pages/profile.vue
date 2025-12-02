@@ -1,65 +1,79 @@
 <template>
   <main class="min-h-screen bg-gray-100 p-6">
-    <section class="max-w-xl mx-auto space-y-6">
-      <header class="flex justify-between items-center">
-        <div>
-          <h1 class="text-2xl font-bold">Profile</h1>
-          <p class="text-sm text-gray-600">
-            Manage your account and FPL team ID
-          </p>
-        </div>
-
-        <NuxtLink
-          to="/dashboard"
-          class="text-sm text-blue-600 underline"
-        >
-          Back to dashboard
-        </NuxtLink>
+    <section class="max-w-2xl mx-auto space-y-6">
+      <header>
+        <h1 class="text-2xl font-bold">Profile</h1>
+        <p class="text-sm text-gray-600">
+          Manage your account and FPL team settings
+        </p>
       </header>
 
-      <section class="bg-white rounded-lg shadow p-4 space-y-4">
-        <div v-if="loading" class="text-sm text-gray-600">
-          Loading profile...
+      <!-- Loading auth user -->
+      <section v-if="authLoading" class="text-sm text-gray-600">
+        Loading your profile...
+      </section>
+
+      <!-- No user (somehow) -->
+      <section v-else-if="!user" class="text-sm text-red-600">
+        You are not logged in.
+      </section>
+
+      <!-- Actual profile form -->
+      <section v-else class="space-y-4">
+        <!-- Account info -->
+        <div class="bg-white rounded-lg shadow p-4 space-y-3">
+          <h2 class="text-lg font-semibold">Account</h2>
+
+          <div class="text-sm">
+            <p class="font-medium">Email</p>
+            <p class="text-gray-700">{{ user.email }}</p>
+          </div>
         </div>
 
-        <div v-else>
-          <div class="mb-4">
-            <p class="text-sm text-gray-500">Email</p>
-            <p class="text-sm font-medium">{{ profile?.email }}</p>
-          </div>
+        <!-- FPL settings -->
+        <div class="bg-white rounded-lg shadow p-4 space-y-4">
+          <h2 class="text-lg font-semibold">FPL Team</h2>
 
-          <form class="space-y-4" @submit.prevent="onSave">
-            <div>
-              <label class="block text-sm font-medium mb-1" for="fplTeamId">
+          <p class="text-xs text-gray-500">
+            Enter your FPL Team ID (the number in the URL when you view your team
+            on fantasy.premierleague.com). This allows FPL Playmaker to sync your
+            team and leagues.
+          </p>
+
+          <form @submit.prevent="saveFplTeam" class="space-y-3">
+            <div class="space-y-1 text-sm">
+              <label for="fpl-team-id" class="font-medium">
                 FPL Team ID
               </label>
               <input
-                id="fplTeamId"
-                v-model="fplTeamId"
+                id="fpl-team-id"
+                v-model="fplTeamIdInput"
                 type="text"
-                placeholder="e.g. 213852"
                 class="w-full border rounded px-3 py-2 text-sm"
+                placeholder="e.g. 1234567"
               />
-              <p class="mt-1 text-xs text-gray-500">
-                You can find this in the URL on the official FPL site (…/entry/<strong>213852</strong>/).
+              <p class="text-xs text-gray-500">
+                Leave this blank and save if you want to clear your FPL team from your account.
               </p>
             </div>
 
-            <p v-if="error" class="text-sm text-red-600">
-              {{ error }}
-            </p>
-            <p v-if="success" class="text-sm text-green-600">
-              {{ success }}
-            </p>
+            <div class="flex items-center gap-3">
+              <button
+                type="submit"
+                class="px-4 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
+                :disabled="saving"
+              >
+                <span v-if="!saving">Save changes</span>
+                <span v-else>Saving...</span>
+              </button>
 
-            <button
-              type="submit"
-              class="py-2 px-4 rounded bg-black text-white text-sm font-semibold"
-              :disabled="saving"
-            >
-              <span v-if="!saving">Save</span>
-              <span v-else>Saving...</span>
-            </button>
+              <p v-if="successMessage" class="text-xs text-green-600">
+                {{ successMessage }}
+              </p>
+              <p v-if="errorMessage" class="text-xs text-red-600">
+                {{ errorMessage }}
+              </p>
+            </div>
           </form>
         </div>
       </section>
@@ -68,77 +82,59 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useApi } from '../composables/useApi';
+import { useAuth } from '../composables/useAuth';
 
-const router = useRouter();
-const { get, put } = useApi();
+const { put } = useApi();
+const { user, loading: authLoading, fetchUser } = useAuth();
 
-const isClient = typeof window !== 'undefined';
-
-interface UserProfile {
-  id: number;
-  email: string;
-  fplTeamId: string | null;
-  createdAt: string;
-}
-
-const profile = ref<UserProfile | null>(null);
-const fplTeamId = ref<string>('');
-const loading = ref(true);
+const fplTeamIdInput = ref('');
 const saving = ref(false);
-const error = ref<string | null>(null);
-const success = ref<string | null>(null);
+const successMessage = ref<string | null>(null);
+const errorMessage = ref<string | null>(null);
 
-const fetchProfile = async () => {
-  loading.value = true;
-  error.value = null;
-  success.value = null;
+// Keep input in sync with auth user
+watch(
+  () => user?.value?.fplTeamId,
+  (newVal) => {
+    fplTeamIdInput.value = newVal ?? '';
+  },
+  { immediate: true },
+);
 
-  try {
-    const res = await get<UserProfile>('/users/me');
-    profile.value = res;
-    fplTeamId.value = res.fplTeamId ?? '';
-  } catch (e: any) {
-    console.error('fetchProfile error:', e);
-    if (e?.status === 401) {
-      router.push('/');
-      return;
-    }
-    error.value = e?.data?.message ?? 'Failed to load profile.';
-  } finally {
-    loading.value = false;
-  }
-};
+const saveFplTeam = async () => {
+  if (!user.value) return;
 
-const onSave = async () => {
   saving.value = true;
-  error.value = null;
-  success.value = null;
+  successMessage.value = null;
+  errorMessage.value = null;
 
   try {
-    const body = {
-      fplTeamId: fplTeamId.value.trim() === '' ? null : fplTeamId.value.trim(),
+    const payload = {
+      // If input is empty, send null to clear; otherwise send the string value
+      fplTeamId: fplTeamIdInput.value.trim() === '' ? null : fplTeamIdInput.value.trim(),
     };
 
-    const updated = await put<UserProfile>('/users/me', body);
-    profile.value = updated;
-    fplTeamId.value = updated.fplTeamId ?? '';
-    success.value = 'Profile updated.';
+    await put('/users/me', payload);
+
+    // Refresh auth user so everyone sees the updated fplTeamId
+    await fetchUser();
+
+    successMessage.value = 'FPL Team ID updated successfully.';
   } catch (e: any) {
-    console.error('updateMe error:', e);
-    if (e?.status === 401) {
-      router.push('/');
-      return;
-    }
-    error.value = e?.data?.message ?? 'Failed to update profile.';
+    console.error('saveFplTeam error:', e);
+    errorMessage.value =
+      e?.data?.message ?? 'Failed to update FPL Team ID.';
   } finally {
     saving.value = false;
   }
 };
 
-onMounted(() => {
-  fetchProfile();
+// Ensure we have user data when landing on this page
+onMounted(async () => {
+  if (!user.value) {
+    await fetchUser();
+  }
 });
 </script>
