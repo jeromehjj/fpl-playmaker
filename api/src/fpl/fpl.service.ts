@@ -21,6 +21,8 @@ import { FplPlayer } from './entities/fpl-player.entity';
 import { RawBootstrapStatic } from './types/fpl-bootstrap-static.type';
 import { FplPlayerListItemDto } from './dto/fpl-player.dto';
 import { ListPlayersOptions } from './types/fpl-list-player-options.type';
+import { RawFplPicksResponse } from './types/fpl-picks.type';
+import { FplSquadDto } from './dto/fpl-squad.dto';
 
 @Injectable()
 export class FplService {
@@ -106,6 +108,48 @@ export class FplService {
     }
 
     return (await response.json()) as RawBootstrapStatic;
+  }
+
+  /**
+   * Fetch current-event picks for the user's team from FPL.
+   */
+  private async fetchPicksForUser(userId: number): Promise<{
+    teamId: string;
+    currentEvent: number;
+    raw: RawFplPicksResponse;
+  }> {
+    const { teamId } = await this.getUserAndTeamIdOrThrow(userId);
+
+    // Use cached entry to know the current event
+    const { raw: entryRaw } = await this.getOrSyncRawEntryForUser(userId);
+    const currentEvent = entryRaw.current_event;
+
+    if (!currentEvent) {
+      throw new BadRequestException(
+        'Current event is not available for this team',
+      );
+    }
+
+    const url = `https://fantasy.premierleague.com/api/entry/${teamId}/event/${currentEvent}/picks/`;
+
+    let response: Response;
+    try {
+      response = await fetch(url);
+    } catch {
+      throw new InternalServerErrorException('Failed to call FPL API');
+    }
+
+    if (!response.ok) {
+      throw new BadGatewayException({
+        statusCode: 502,
+        code: 'FPL_UPSTREAM_ERROR',
+        message: `FPL picks API responded with status ${response.status}`,
+      });
+    }
+
+    const data = (await response.json()) as RawFplPicksResponse;
+
+    return { teamId, currentEvent, raw: data };
   }
 
   /**
@@ -215,6 +259,81 @@ export class FplService {
         shortName: p.club.shortName,
       },
     }));
+  }
+
+  /**
+   * Return current gameweek squad (XI + bench) mapped to stored players.
+   */
+  async getCurrentSquadForUser(userId: number): Promise<FplSquadDto> {
+    const { teamId, currentEvent, raw } = await this.fetchPicksForUser(userId);
+
+    const elementIds = raw.picks.map((p) => p.element);
+    if (elementIds.length === 0) {
+      return {
+        event: currentEvent,
+        teamId,
+        value: raw.entry_history.value,
+        bank: raw.entry_history.bank,
+        starting: [],
+        bench: [],
+      };
+    }
+
+    const players = await this.playerRepository.find({
+      where: { externalId: In(elementIds) },
+      relations: ['club'],
+    });
+
+    const byExternalId = new Map(players.map((p) => [p.externalId, p]));
+
+    const starting: FplSquadDto['starting'] = [];
+    const bench: FplSquadDto['bench'] = [];
+
+    for (const pick of raw.picks) {
+      const player = byExternalId.get(pick.element);
+      if (!player) {
+        continue;
+      }
+
+      const isStarting = pick.position <= 11;
+
+      const dto = {
+        id: player.id,
+        externalId: player.externalId,
+        webName: player.webName,
+        fullName: player.fullName,
+        position: player.position,
+        nowCost: player.nowCost,
+        club: {
+          id: player.club.id,
+          externalId: player.club.externalId,
+          name: player.club.name,
+          shortName: player.club.shortName,
+        },
+        pick: {
+          position: pick.position,
+          multiplier: pick.multiplier,
+          isCaptain: pick.is_captain,
+          isViceCaptain: pick.is_vice_captain,
+          isStarting,
+        },
+      };
+
+      if (isStarting) {
+        starting.push(dto);
+      } else {
+        bench.push(dto);
+      }
+    }
+
+    return {
+      event: raw.entry_history.event,
+      teamId,
+      value: raw.entry_history.value,
+      bank: raw.entry_history.bank,
+      starting,
+      bench,
+    };
   }
 
   /**

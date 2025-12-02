@@ -48,6 +48,11 @@ export class FplController {
     });
   }
 
+  @Get('squad')
+  async getSquad(@Req() req: AuthRequest) {
+    return this.fplService.getCurrentSquadForUser(req.user.userId);
+  }
+
   @Get('team')
   async getTeam(@Req() req: AuthRequest) {
     return this.fplService.getTeamOverviewForUser(req.user.userId);
