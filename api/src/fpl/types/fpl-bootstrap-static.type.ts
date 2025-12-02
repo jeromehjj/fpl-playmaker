@@ -12,6 +12,11 @@ export interface RawBootstrapPlayer {
   second_name: string;
   element_type: number; // 1=GK,2=DEF,3=MID,4=FWD
   now_cost: number;
+  // Metric values
+  total_points: number;
+  minutes: number;
+  points_per_game: string;
+
   // Keep the rest of the payload but we do not type every field here
   [key: string]: unknown;
 }

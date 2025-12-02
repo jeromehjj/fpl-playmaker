@@ -18,7 +18,10 @@ import { FplLeague } from './entities/fpl-league.entity';
 import { User } from '../users/user.entity';
 import { FplClub } from './entities/fpl-club.entity';
 import { FplPlayer } from './entities/fpl-player.entity';
-import { RawBootstrapStatic } from './types/fpl-bootstrap-static.type';
+import {
+  RawBootstrapStatic,
+  RawBootstrapPlayer,
+} from './types/fpl-bootstrap-static.type';
 import { FplPlayerListItemDto } from './dto/fpl-player.dto';
 import { ListPlayersOptions } from './types/fpl-list-player-options.type';
 import { RawFplPicksResponse } from './types/fpl-picks.type';
@@ -245,20 +248,40 @@ export class FplService {
 
     const players = await qb.getMany();
 
-    return players.map((p) => ({
-      id: p.id,
-      externalId: p.externalId,
-      webName: p.webName,
-      fullName: p.fullName,
-      position: p.position,
-      nowCost: p.nowCost,
-      club: {
-        id: p.club.id,
-        externalId: p.club.externalId,
-        name: p.club.name,
-        shortName: p.club.shortName,
-      },
-    }));
+    return players.map((p) => {
+      const raw = (p.raw ?? null) as RawBootstrapPlayer | null;
+
+      const valueMillions = p.nowCost / 10;
+      const totalPoints = raw?.total_points ?? null;
+      const pointsPerGame = raw
+        ? Number.parseFloat(raw.points_per_game) || null
+        : null;
+      const minutes = raw?.minutes ?? null;
+      const pointsPerMillion =
+        totalPoints !== null && valueMillions > 0
+          ? Number((totalPoints / valueMillions).toFixed(2))
+          : null;
+
+      return {
+        id: p.id,
+        externalId: p.externalId,
+        webName: p.webName,
+        fullName: p.fullName,
+        position: p.position,
+        nowCost: p.nowCost,
+        valueMillions,
+        totalPoints,
+        pointsPerGame,
+        pointsPerMillion,
+        minutes,
+        club: {
+          id: p.club.id,
+          externalId: p.club.externalId,
+          name: p.club.name,
+          shortName: p.club.shortName,
+        },
+      };
+    });
   }
 
   /**
@@ -296,6 +319,18 @@ export class FplService {
       }
 
       const isStarting = pick.position <= 11;
+      const rawPlayer = (player.raw ?? null) as RawBootstrapPlayer | null;
+
+      const valueMillions = player.nowCost / 10;
+      const totalPoints = rawPlayer?.total_points ?? null;
+      const pointsPerGame = rawPlayer
+        ? Number.parseFloat(rawPlayer.points_per_game) || null
+        : null;
+      const minutes = rawPlayer?.minutes ?? null;
+      const pointsPerMillion =
+        totalPoints !== null && valueMillions > 0
+          ? Number((totalPoints / valueMillions).toFixed(2))
+          : null;
 
       const dto = {
         id: player.id,
@@ -304,6 +339,11 @@ export class FplService {
         fullName: player.fullName,
         position: player.position,
         nowCost: player.nowCost,
+        valueMillions,
+        totalPoints,
+        pointsPerGame,
+        pointsPerMillion,
+        minutes,
         club: {
           id: player.club.id,
           externalId: player.club.externalId,
