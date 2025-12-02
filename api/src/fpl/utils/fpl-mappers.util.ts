@@ -3,6 +3,7 @@ import { FplTeamOverviewDto } from '../dto/fpl-team-overview.dto';
 import { FplLeagueKind } from '../types/fpl-league-kind';
 import { RawFplEntry, RawFplLeague } from '../types/fpl-raw-types';
 import { FplLeagueScoring } from '../types/fpl-league-scoring';
+import type { FplPosition } from '../types/fpl-position';
 
 function mapScoring(scoring: string): FplLeagueScoring {
   if (scoring === 'h') return 'h2h';
@@ -74,4 +75,22 @@ export function mapEntryToOverview(
     leagues,
     lastSyncedAt: null,
   };
+}
+
+/**
+ * Map FPL element_type to our position enum.
+ */
+export function mapElementTypeToPosition(elementType: number): FplPosition {
+  switch (elementType) {
+    case 1:
+      return 'GK';
+    case 2:
+      return 'DEF';
+    case 3:
+      return 'MID';
+    case 4:
+      return 'FWD';
+    default:
+      return 'UNKNOWN'; // Cannot ever be unknown
+  }
 }
