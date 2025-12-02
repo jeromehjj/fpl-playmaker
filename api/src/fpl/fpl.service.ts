@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   Injectable,
   InternalServerErrorException,
@@ -31,7 +32,12 @@ export class FplService {
   ): Promise<{ user: User; teamId: string }> {
     const user = await this.usersService.findById(userId);
     if (!user || !user.fplTeamId) {
-      throw new BadRequestException('User has no FPL team ID set');
+      // NO FPL TEAM ID
+      throw new BadRequestException({
+        statusCode: 400,
+        code: 'NO_FPL_TEAM',
+        message: 'User has no FPL team ID set',
+      });
     }
     return { user, teamId: user.fplTeamId };
   }
@@ -54,9 +60,11 @@ export class FplService {
     }
 
     if (!response.ok) {
-      throw new BadRequestException(
-        `FPL API responded with status ${response.status}`,
-      );
+      throw new BadGatewayException({
+        statusCode: 502,
+        code: 'FPL_UPSTREAM_ERROR',
+        message: `FPL API responded with status ${response.status}`,
+      });
     }
 
     const data = (await response.json()) as RawFplEntry;
@@ -160,7 +168,7 @@ export class FplService {
     if (existingTeam) {
       return {
         teamId: existingTeam.entryId,
-        raw: existingTeam.raw as RawFplEntry,
+        raw: existingTeam.raw,
         lastSyncedAt: existingTeam.lastSyncedAt ?? null,
       };
     }

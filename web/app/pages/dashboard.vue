@@ -10,30 +10,21 @@
           <p
             v-if="team?.lastSyncedAt"
             class="text-xs text-gray-500 mt-1"
-            >
+          >
             Last synced:
             {{ new Date(team.lastSyncedAt).toLocaleString() }}
-        </p>
+          </p>
         </div>
 
         <div class="flex items-center gap-3">
-            <button
-                class="text-xs px-3 py-1 border rounded bg-white hover:bg-gray-50"
-                @click="refreshTeam"
-                :disabled="syncing"
-                >
-                <span v-if="!syncing">Refresh from FPL</span>
-                <span v-else>Syncing...</span>
-            </button>
-            <NuxtLink to="/profile" class="text-sm text-blue-600 underline">
-            Profile
-            </NuxtLink>
-
-            <button
-            class="text-sm text-red-600 underline"
-            @click="logout">
-            Log out
-            </button>
+          <button
+            class="text-xs px-3 py-1 border rounded bg-white hover:bg-gray-50 disabled:opacity-60"
+            @click="refreshTeam"
+            :disabled="syncing"
+          >
+            <span v-if="!syncing">Refresh from FPL</span>
+            <span v-else>Syncing...</span>
+          </button>
         </div>
       </header>
 
@@ -77,11 +68,15 @@
               <p>#{{ team.overallRank.toLocaleString() }}</p>
             </div>
             <div>
-              <p class="font-medium">GW{{ team.currentEvent }} Points</p>
+              <p class="font-medium">
+                GW{{ team.currentEvent }} Points
+              </p>
               <p>{{ team.gwPoints }}</p>
             </div>
             <div>
-              <p class="font-medium">GW{{ team.currentEvent }} Rank</p>
+              <p class="font-medium">
+                GW{{ team.currentEvent }} Rank
+              </p>
               <p>#{{ team.gwRank.toLocaleString() }}</p>
             </div>
           </div>
@@ -101,7 +96,11 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="lg in team.leagues" :key="`${lg.category}-${lg.id}`" class="border-b last:border-b-0">
+                <tr
+                  v-for="lg in team.leagues"
+                  :key="`${lg.category}-${lg.id}`"
+                  class="border-b last:border-b-0"
+                >
                   <td class="py-1 pr-4">{{ lg.name }}</td>
                   <td class="py-1 pr-4">
                     {{ lg.scoring === 'classic' ? 'Classic' : 'Head to head' }}
@@ -191,7 +190,7 @@ const fetchTeam = async () => {
     }
 
     // No FPL team synced yet
-    if (e?.status === 400) {
+    if (e?.status === 400 && e?.data?.code === 'NO_FPL_TEAM') {
       team.value = null;
       noTeam.value = true;
       return;
@@ -208,9 +207,7 @@ const refreshTeam = async () => {
   syncing.value = true;
   error.value = null;
   try {
-    // Trigger a fresh sync from FPL (updates DB)
     await post('/fpl/sync-team');
-    // Then reload overview from DB
     await fetchTeam();
   } catch (e: any) {
     console.error('refreshTeam error:', e);
@@ -220,18 +217,7 @@ const refreshTeam = async () => {
   }
 };
 
-const logout = async () => {
-    try {
-        await post('/auth/logout');
-    } catch (e) {
-        console.error('Log out error: ', e);
-    } finally {
-        router.push('/');
-    }
-};
-
 onMounted(() => {
   fetchTeam();
 });
 </script>
-

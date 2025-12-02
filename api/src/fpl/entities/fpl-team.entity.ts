@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { User } from '../../users/user.entity';
 import { FplLeague } from './fpl-league.entity';
+import type { RawFplEntry } from '../types/fpl-raw-types';
 
 @Entity('fpl_teams')
 export class FplTeam {
@@ -53,7 +54,7 @@ export class FplTeam {
 
   // Keep a copy of the raw FPL JSON in case we want more later
   @Column({ type: 'jsonb' })
-  raw: unknown;
+  raw: RawFplEntry;
 
   @OneToMany(() => FplLeague, (league) => league.team, {
     cascade: true,
