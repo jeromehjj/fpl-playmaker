@@ -1,1 +1,1 @@
-export type FplPosition = 'GK' | 'DEF' | 'MID' | 'FWD';
+export type FplPosition = 'GK' | 'DEF' | 'MID' | 'FWD' | 'UNKNOWN';

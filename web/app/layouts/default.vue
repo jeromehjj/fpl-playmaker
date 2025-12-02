@@ -15,6 +15,12 @@
           <!-- When logged in -->
           <template v-if="user">
             <NuxtLink
+              to="/players"
+              class="hover:text-blue-600">
+              Players
+            </NuxtLink>
+
+            <NuxtLink
               to="/dashboard"
               class="hover:text-blue-600"
             >

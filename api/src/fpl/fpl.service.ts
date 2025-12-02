@@ -5,14 +5,22 @@ import {
   InternalServerErrorException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { UsersService } from '../users/users.service';
 import { RawFplEntry } from './types/fpl-raw-types';
 import { FplTeamOverviewDto } from './dto/fpl-team-overview.dto';
-import { mapEntryToOverview } from './utils/fpl-mappers.util';
+import {
+  mapElementTypeToPosition,
+  mapEntryToOverview,
+} from './utils/fpl-mappers.util';
 import { FplTeam } from './entities/fpl-team.entity';
 import { FplLeague } from './entities/fpl-league.entity';
 import { User } from '../users/user.entity';
+import { FplClub } from './entities/fpl-club.entity';
+import { FplPlayer } from './entities/fpl-player.entity';
+import { RawBootstrapStatic } from './types/fpl-bootstrap-static.type';
+import { FplPlayerListItemDto } from './dto/fpl-player.dto';
+import { ListPlayersOptions } from './types/fpl-list-player-options.type';
 
 @Injectable()
 export class FplService {
@@ -22,6 +30,10 @@ export class FplService {
     private readonly teamRepository: Repository<FplTeam>,
     @InjectRepository(FplLeague)
     private readonly leagueRepository: Repository<FplLeague>,
+    @InjectRepository(FplClub)
+    private readonly clubRepository: Repository<FplClub>,
+    @InjectRepository(FplPlayer)
+    private readonly playerRepository: Repository<FplPlayer>,
   ) {}
 
   /**
@@ -70,6 +82,139 @@ export class FplService {
     const data = (await response.json()) as RawFplEntry;
 
     return { teamId, raw: data };
+  }
+
+  /**
+   * Fetches bootstrap-static payload (clubs + players).
+   */
+  private async fetchBootstrapStatic(): Promise<RawBootstrapStatic> {
+    const url = 'https://fantasy.premierleague.com/api/bootstrap-static/';
+
+    let response: Response;
+    try {
+      response = await fetch(url);
+    } catch {
+      throw new InternalServerErrorException('Failed to call FPL API');
+    }
+
+    if (!response.ok) {
+      throw new BadGatewayException({
+        statusCode: 502,
+        code: 'FPL_UPSTREAM_ERROR',
+        message: `FPL API responded with status ${response.status}`,
+      });
+    }
+
+    return (await response.json()) as RawBootstrapStatic;
+  }
+
+  /**
+   * Sync clubs and players from bootstrap-static into the DB.
+   */
+  async syncBootstrapData() {
+    const bootstrap = await this.fetchBootstrapStatic();
+
+    // Upsert clubs (FPL calls them "teams" in bootstrap-static)
+    const clubsToUpsert = bootstrap.teams.map((team) => ({
+      externalId: team.id,
+      name: team.name,
+      shortName: team.short_name,
+    }));
+
+    await this.clubRepository.upsert(clubsToUpsert, ['externalId']);
+
+    const clubs = await this.clubRepository.find({
+      where: { externalId: In(bootstrap.teams.map((t) => t.id)) },
+    });
+    const clubByExternalId = new Map<number, FplClub>(
+      clubs.map((club) => [club.externalId, club]),
+    );
+
+    // Upsert players
+    const playersToUpsert = bootstrap.elements.map((player) => {
+      const club = clubByExternalId.get(player.team);
+      if (!club) {
+        throw new InternalServerErrorException(
+          `Missing club for team id ${player.team} while syncing players`,
+        );
+      }
+
+      const fullName = `${player.first_name ?? ''} ${player.second_name ?? ''}`
+        .trim()
+        .replace(/\s+/g, ' ');
+
+      return {
+        externalId: player.id,
+        club: { id: club.id },
+        webName: player.web_name,
+        fullName: fullName.length > 0 ? fullName : null,
+        position: mapElementTypeToPosition(player.element_type),
+        nowCost: player.now_cost,
+        raw: player,
+      };
+    });
+
+    await this.playerRepository.upsert(playersToUpsert, ['externalId']);
+
+    return {
+      clubsSynced: clubsToUpsert.length,
+      playersSynced: playersToUpsert.length,
+    };
+  }
+
+  /**
+   * Read-only list of players with optional filters.
+   */
+  async listPlayers(
+    options: ListPlayersOptions = {},
+  ): Promise<FplPlayerListItemDto[]> {
+    const {
+      clubExternalId,
+      position,
+      search,
+      offset = 0,
+      limit = 50,
+    } = options;
+
+    const qb = this.playerRepository
+      .createQueryBuilder('player')
+      .leftJoinAndSelect('player.club', 'club')
+      .orderBy('player.nowCost', 'DESC')
+      .addOrderBy('player.webName', 'ASC')
+      .limit(Math.min(Math.max(limit, 1), 200)) // guard limits
+      .offset(Math.max(offset, 0));
+
+    if (clubExternalId) {
+      qb.andWhere('club.externalId = :clubExternalId', { clubExternalId });
+    }
+
+    if (position) {
+      qb.andWhere('player.position = :position', { position });
+    }
+
+    if (search) {
+      qb.andWhere(
+        '(player.webName ILIKE :search OR player.fullName ILIKE :search)',
+        { search: `%${search}%` },
+      );
+    }
+
+    const players = await qb.getMany();
+
+    return players.map((p) => ({
+      id: p.id,
+      externalId: p.externalId,
+      webName: p.webName,
+      fullName: p.fullName,
+      position: p.position,
+      nowCost: p.nowCost,
+      club: {
+        id: p.club.id,
+        externalId: p.club.externalId,
+        name: p.club.name,
+        shortName: p.club.shortName,
+      },
+    }));
   }
 
   /**
