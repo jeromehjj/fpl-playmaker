@@ -2,80 +2,97 @@
   <main class="min-h-screen bg-gray-100 p-6">
     <section class="max-w-2xl mx-auto space-y-6">
       <header>
-        <h1 class="text-2xl font-bold">Profile</h1>
-        <p class="text-sm text-gray-600">
+        <h1 class="text-2xl font-bold text-emerald-400">Profile</h1>
+        <p class="text-sm text-gray-700">
           Manage your account and FPL team settings
         </p>
       </header>
 
       <!-- Loading auth user -->
-      <section v-if="authLoading" class="text-sm text-gray-600">
-        Loading your profile...
+      <section v-if="authLoading">
+        <UCard>
+          <div class="space-y-2 text-sm">
+            <p>Loading your profile...</p>
+            <USkeleton class="h-4 w-1/2" />
+            <USkeleton class="h-4 w-1/3" />
+          </div>
+        </UCard>
       </section>
 
-      <!-- No user (somehow) -->
-      <section v-else-if="!user" class="text-sm text-red-600">
-        You are not logged in.
+      <!-- Not logged in (edge case) -->
+      <section v-else-if="!user">
+        <UAlert
+          color="error"
+          title="Not logged in"
+          description="Please log in again to manage your profile."
+        />
       </section>
 
       <!-- Actual profile form -->
       <section v-else class="space-y-4">
         <!-- Account info -->
-        <div class="bg-white rounded-lg shadow p-4 space-y-3">
-          <h2 class="text-lg font-semibold">Account</h2>
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-semibold">Account</h2>
+            </div>
+          </template>
 
-          <div class="text-sm">
-            <p class="font-medium">Email</p>
-            <p class="text-gray-700">{{ user.email }}</p>
+          <div class="space-y-2 text-sm">
+            <div>
+              <p class="font-medium text-gray-400">Email</p>
+              <p class="text-white">{{ user.email }}</p>
+            </div>
           </div>
-        </div>
+        </UCard>
 
         <!-- FPL settings -->
-        <div class="bg-white rounded-lg shadow p-4 space-y-4">
-          <h2 class="text-lg font-semibold">FPL Team</h2>
-
-          <p class="text-xs text-gray-500">
-            Enter your FPL Team ID (the number in the URL when you view your team
-            on fantasy.premierleague.com). This allows FPL Playmaker to sync your
-            team and leagues.
-          </p>
-
-          <form @submit.prevent="saveFplTeam" class="space-y-3">
-            <div class="space-y-1 text-sm">
-              <label for="fpl-team-id" class="font-medium">
-                FPL Team ID
-              </label>
-              <input
-                id="fpl-team-id"
-                v-model="fplTeamIdInput"
-                type="text"
-                class="w-full border rounded px-3 py-2 text-sm"
-                placeholder="e.g. 1234567"
-              />
-              <p class="text-xs text-gray-500">
-                Leave this blank and save if you want to clear your FPL team from your account.
-              </p>
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-semibold">FPL Team</h2>
             </div>
+          </template>
 
-            <div class="flex items-center gap-3">
-              <button
-                type="submit"
-                class="px-4 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
-                :disabled="saving"
+          <div class="space-y-4 text-sm">
+            <p class="text-gray-400">
+              Enter your FPL Team ID (the number in the URL when you view your
+              team on fantasy.premierleague.com). This lets FPL Playmaker sync
+              your team and leagues.
+            </p>
+
+            <form @submit.prevent="saveFplTeam" class="space-y-3">
+              <UFormGroup
+                label="FPL Team ID"
+                help="Leave this blank and save if you want to clear your FPL team from your account."
               >
-                <span v-if="!saving">Save changes</span>
-                <span v-else>Saving...</span>
-              </button>
+                <UInput
+                  v-model="fplTeamIdInput"
+                  placeholder="e.g. 1234567"
+                />
+              </UFormGroup>
 
-              <p v-if="successMessage" class="text-xs text-green-600">
-                {{ successMessage }}
-              </p>
-              <p v-if="errorMessage" class="text-xs text-red-600">
-                {{ errorMessage }}
-              </p>
-            </div>
-          </form>
-        </div>
+              <div class="flex items-center gap-3">
+                <UButton
+                  class="mt-3"
+                  type="submit"
+                  color="primary"
+                  :loading="saving"
+                  :disabled="saving"
+                >
+                  Save changes
+                </UButton>
+
+                <p v-if="successMessage" class="text-xs text-emerald-600">
+                  {{ successMessage }}
+                </p>
+                <p v-if="errorMessage" class="text-xs text-red-600">
+                  {{ errorMessage }}
+                </p>
+              </div>
+            </form>
+          </div>
+        </UCard>
       </section>
     </section>
   </main>

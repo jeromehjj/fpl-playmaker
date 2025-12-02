@@ -1,7 +1,7 @@
 <template>
-  <div class="min-h-screen bg-gray-100 flex flex-col">
+  <div class="min-h-screen bg-slate-900 flex flex-col">
     <!-- Top nav -->
-    <header class="bg-white shadow-sm">
+    <header class="bg-slate-800 shadow-sm">
       <nav
         class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between"
       >
@@ -9,9 +9,6 @@
           <NuxtLink to="/dashboard" class="text-lg font-semibold">
             FPL Playmaker
           </NuxtLink>
-          <p class="text-xs text-gray-500 hidden sm:block">
-            Make smarter FPL decisions
-          </p>
         </div>
 
         <div class="flex items-center gap-4 text-sm">

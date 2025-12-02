@@ -1,9 +1,10 @@
 <template>
   <main class="min-h-screen bg-gray-100 p-6">
     <section class="max-w-4xl mx-auto space-y-6">
-      <header class="flex justify-between items-center">
+      <!-- Header -->
+      <header class="flex justify-between items-center gap-3">
         <div>
-          <h1 class="text-2xl font-bold">FPL Dashboard</h1>
+          <h1 class="text-2xl font-bold text-emerald-400">Dashboard</h1>
           <p class="text-sm text-gray-600">
             Overview for your FPL team
           </p>
@@ -16,105 +17,157 @@
           </p>
         </div>
 
-        <div class="flex items-center gap-3">
-          <button
-            class="text-xs px-3 py-1 border rounded bg-white hover:bg-gray-50 disabled:opacity-60"
-            @click="refreshTeam"
-            :disabled="syncing"
-          >
-            <span v-if="!syncing">Refresh from FPL</span>
-            <span v-else>Syncing...</span>
-          </button>
-        </div>
+        <UButton
+          size="xs"
+          variant="outline"
+          :loading="syncing"
+          :disabled="syncing"
+          @click="refreshTeam"
+        >
+          Refresh from FPL
+        </UButton>
       </header>
 
+      <!-- Loading state -->
       <section v-if="loading" class="text-sm text-gray-600">
-        Loading team data...
+        <UCard>
+          <div class="space-y-2">
+            <p>Loading team data...</p>
+            <USkeleton class="h-4 w-1/2" />
+            <USkeleton class="h-4 w-1/3" />
+          </div>
+        </UCard>
       </section>
 
       <!-- No team synced yet -->
-      <section v-else-if="noTeam" class="space-y-2 text-sm text-gray-700">
-        <p class="font-medium">No FPL team found yet.</p>
-        <p>
-          To get started, go to your
-          <NuxtLink to="/profile" class="text-blue-600 underline">
-            profile
-          </NuxtLink>
-          and enter your FPL Team ID. Then come back here and click
-          <span class="font-semibold">“Refresh from FPL”</span>.
-        </p>
+      <section v-else-if="noTeam">
+        <UAlert
+          color="warning"
+          title="No FPL team found yet"
+          description="Go to your profile and enter your FPL Team ID. Then come back here and refresh from FPL."
+        >
+          <template #description>
+            <p class="text-sm">
+              To get started, go to your
+              <NuxtLink to="/profile" class="text-emerald-700 underline">
+                profile
+              </NuxtLink>
+              and enter your FPL Team ID. Then come back here and click
+              <span class="font-semibold">“Refresh from FPL”</span>.
+            </p>
+          </template>
+        </UAlert>
       </section>
 
-      <section v-else-if="error" class="text-sm text-red-600">
-        {{ error }}
+      <!-- Error state -->
+      <section v-else-if="error">
+        <UAlert
+          color="error"
+          title="Something went wrong"
+          :description="error"
+        />
       </section>
 
+      <!-- Team overview + leagues -->
       <section v-else-if="team" class="space-y-4">
-        <div class="bg-white rounded-lg shadow p-4">
-          <h2 class="text-lg font-semibold">
-            {{ team.teamName }}
-          </h2>
-          <p class="text-sm text-gray-700">
-            Manager: {{ team.managerName }} • Region: {{ team.region }} ({{ team.regionCode }})
-          </p>
+        <!-- Team overview -->
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <h2 class="text-lg font-semibold">
+                  {{ team.teamName }}
+                </h2>
+                <p class="text-sm text-white">
+                  Manager: {{ team.managerName }} • Region:
+                  {{ team.region }} ({{ team.regionCode }})
+                </p>
+              </div>
+            </div>
+          </template>
 
-          <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div>
-              <p class="font-medium">Overall Points</p>
-              <p>{{ team.overallPoints }}</p>
+              <p class="font-medium text-white">Overall Points</p>
+              <p class="text-white">{{ team.overallPoints }}</p>
             </div>
             <div>
-              <p class="font-medium">Overall Rank</p>
-              <p>#{{ team.overallRank.toLocaleString() }}</p>
+              <p class="font-medium text-white">Overall Rank</p>
+              <p class="text-white">
+                #{{ team.overallRank.toLocaleString() }}
+              </p>
             </div>
             <div>
-              <p class="font-medium">
+              <p class="font-medium text-white">
                 GW{{ team.currentEvent }} Points
               </p>
-              <p>{{ team.gwPoints }}</p>
+              <p class="text-white">{{ team.gwPoints }}</p>
             </div>
             <div>
-              <p class="font-medium">
+              <p class="font-medium text-white">
                 GW{{ team.currentEvent }} Rank
               </p>
-              <p>#{{ team.gwRank.toLocaleString() }}</p>
+              <p class="text-white">
+                #{{ team.gwRank.toLocaleString() }}
+              </p>
             </div>
           </div>
-        </div>
+        </UCard>
 
-        <div class="bg-white rounded-lg shadow p-4">
-          <h2 class="text-lg font-semibold mb-2">Leagues</h2>
+        <!-- Leagues -->
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-semibold">Leagues</h2>
+              <p class="text-xs text-white">
+                {{ team.leagues.length }} joined
+              </p>
+            </div>
+          </template>
+
           <div class="overflow-x-auto">
             <table class="min-w-full text-xs">
               <thead>
-                <tr class="text-left border-b">
-                  <th class="py-1 pr-4">Name</th>
-                  <th class="py-1 pr-4">Scoring</th>
-                  <th class="py-1 pr-4">Type</th>
-                  <th class="py-1 pr-4">Rank</th>
-                  <th class="py-1 pr-4">Teams</th>
+                <tr class="text-left border-b border-gray-200">
+                  <th class="py-1.5 pr-4 font-medium text-gray-400">
+                    Name
+                  </th>
+                  <th class="py-1.5 pr-4 font-medium text-gray-400">
+                    Scoring
+                  </th>
+                  <th class="py-1.5 pr-4 font-medium text-gray-400">
+                    Type
+                  </th>
+                  <th class="py-1.5 pr-4 font-medium text-gray-400">
+                    Rank
+                  </th>
+                  <th class="py-1.5 pr-4 font-medium text-gray-400">
+                    Teams
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 <tr
                   v-for="lg in team.leagues"
                   :key="`${lg.category}-${lg.id}`"
-                  class="border-b last:border-b-0"
+                  class="border-b border-gray-100 last:border-b-0"
                 >
-                  <td class="py-1 pr-4">{{ lg.name }}</td>
-                  <td class="py-1 pr-4">
+                  <td class="py-1.5 pr-4">
+                    {{ lg.name }}
+                  </td>
+                  <td class="py-1.5 pr-4">
                     {{ lg.scoring === 'classic' ? 'Classic' : 'Head to head' }}
                   </td>
-                  <td class="py-1 pr-4">
+                  <td class="py-1.5 pr-4">
                     {{ lg.leagueType }}
                   </td>
-                  <td class="py-1 pr-4">
+                  <td class="py-1.5 pr-4">
                     <span v-if="lg.entryRank !== null">
                       #{{ lg.entryRank.toLocaleString() }}
                     </span>
                     <span v-else>-</span>
                   </td>
-                  <td class="py-1 pr-4">
+                  <td class="py-1.5 pr-4">
                     <span v-if="lg.rankCount !== null">
                       {{ lg.rankCount.toLocaleString() }}
                     </span>
@@ -124,7 +177,7 @@
               </tbody>
             </table>
           </div>
-        </div>
+        </UCard>
       </section>
     </section>
   </main>
