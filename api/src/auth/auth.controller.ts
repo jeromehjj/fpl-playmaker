@@ -35,7 +35,7 @@ export class AuthController {
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
       path: '/',
-      maxAge: Number(process.env.JWT_EXPIRES_IN) || 604800,
+      maxAge: Number(process.env.JWT_EXPIRES_IN) * 1000 || 604800000,
     });
 
     return { user };

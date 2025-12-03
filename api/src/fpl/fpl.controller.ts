@@ -74,4 +74,9 @@ export class FplController {
   async getTeam(@Req() req: AuthRequest) {
     return this.fplService.getTeamOverviewForUser(req.user.userId);
   }
+
+  @Get('transfer-suggestions')
+  async getTransferSuggestions(@Req() req: AuthRequest) {
+    return this.fplService.getTransferSuggestionsForUser(req.user.userId);
+  }
 }

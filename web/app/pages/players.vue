@@ -100,6 +100,7 @@ import type { TableColumn } from '@nuxt/ui';
 import { useApi } from '../composables/useApi';
 
 type Position = 'GK' | 'DEF' | 'MID' | 'FWD';
+type Availability = 'AVAILABLE' | 'RISKY' | 'UNAVAILABLE';
 
 type SortKey =
   | 'PRICE'
@@ -141,6 +142,7 @@ interface Player {
   pointsPerMillion: number | null;
   minutes: number | null;
   pointsPerNinety: number | null;
+  availability: Availability;
   club: {
     id: number;
     externalId: number;
@@ -207,6 +209,26 @@ const columns: TableColumn<Player>[] = [
   {
     accessorKey: 'position',
     header: 'Position',
+  },
+  {
+    id: 'availability',
+    header: 'Status',
+    cell: ({ row }) => {
+      const status = (row.original as Player).availability;
+      const label =
+        status === 'AVAILABLE'
+          ? 'Available'
+          : status === 'RISKY'
+          ? 'Risky'
+          : 'Unavailable';
+      const color =
+        status === 'AVAILABLE'
+          ? 'text-green-500'
+          : status === 'RISKY'
+          ? 'text-amber-500'
+          : 'text-red-500';
+      return h('span', { class: `text-xs font-medium ${color}` }, label);
+    },
   },
   {
     id: 'club',

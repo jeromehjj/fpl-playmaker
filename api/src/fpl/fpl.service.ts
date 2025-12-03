@@ -29,6 +29,8 @@ import { RawFplPicksResponse } from './types/fpl-picks.type';
 import { RawFplFixture } from './types/fpl-fixture.type';
 import { FplSquadDto } from './dto/fpl-squad.dto';
 import type { GameweekState } from './types/fpl-gameweek-state.type';
+import { FplTransferSuggestionDto } from './dto/fpl-transfer-suggestion.dto';
+import { FplAvailability } from './types/fpl-availability.type';
 
 @Injectable()
 export class FplService {
@@ -420,6 +422,7 @@ export class FplService {
 
     return players.map((p) => {
       const raw = (p.raw ?? null) as RawBootstrapPlayer | null;
+      const availability = this.getAvailabilityFromRaw(raw);
 
       const valueMillions = p.nowCost / 10;
       const totalPoints = raw?.total_points ?? null;
@@ -454,6 +457,7 @@ export class FplService {
         pointsPerMillion,
         minutes,
         pointsPerNinety,
+        availability,
         club: {
           id: p.club.id,
           externalId: p.club.externalId,
@@ -500,6 +504,7 @@ export class FplService {
 
       const isStarting = pick.position <= 11;
       const rawPlayer = (player.raw ?? null) as RawBootstrapPlayer | null;
+      const availability = this.getAvailabilityFromRaw(rawPlayer);
 
       const valueMillions = player.nowCost / 10;
       const totalPoints = rawPlayer?.total_points ?? null;
@@ -516,6 +521,11 @@ export class FplService {
           ? Number((totalPoints / valueMillions).toFixed(2))
           : null;
 
+      const pointsPerNinety =
+        totalPoints !== null && minutes !== null && minutes > 0
+          ? Number(((totalPoints * 90) / minutes).toFixed(2))
+          : null;
+
       const dto = {
         id: player.id,
         externalId: player.externalId,
@@ -527,6 +537,8 @@ export class FplService {
         totalPoints,
         pointsPerGame,
         pointsPerMillion,
+        pointsPerNinety,
+        availability,
         minutes,
         club: {
           id: player.club.id,
@@ -558,6 +570,120 @@ export class FplService {
       starting,
       bench,
     };
+  }
+
+  /**
+   * Bank-aware transfer suggestions based on points per 90.
+   */
+  async getTransferSuggestionsForUser(
+    userId: number,
+  ): Promise<FplTransferSuggestionDto[]> {
+    const squad = await this.getCurrentSquadForUser(userId);
+
+    const allPlayers = await this.listPlayers({
+      limit: 1000,
+      minMinutes: 360, // only reasonably nailed players
+      sortKey: 'POINTS_PER_90',
+      sortDirection: 'DESC',
+    });
+
+    const ownedExternalIds = new Set<number>(
+      [...squad.starting, ...squad.bench].map((p) => p.externalId),
+    );
+
+    const bank = squad.bank; // tenths of a million
+    const suggestions: FplTransferSuggestionDto[] = [];
+    const maxPerFrom = 3;
+
+    for (const from of squad.starting) {
+      const fromPerNinety = from.pointsPerNinety;
+      if (
+        fromPerNinety === null ||
+        from.minutes === null ||
+        from.minutes < 180
+      ) {
+        continue;
+      }
+
+      const budget = from.nowCost + bank;
+      let count = 0;
+
+      for (const candidate of allPlayers) {
+        if (count >= maxPerFrom) break;
+
+        if (candidate.position !== from.position) continue;
+        if (ownedExternalIds.has(candidate.externalId)) continue;
+        if (candidate.nowCost > budget) continue;
+        if (candidate.pointsPerNinety === null) continue;
+        if (candidate.availability !== 'AVAILABLE') continue;
+
+        const newBank = bank + from.nowCost - candidate.nowCost;
+        if (newBank < 0) continue;
+
+        const perNinetyDiff = candidate.pointsPerNinety - fromPerNinety;
+        if (perNinetyDiff <= 0) continue;
+
+        let ppmDiff: number | null = null;
+        if (
+          candidate.pointsPerMillion !== null &&
+          from.pointsPerMillion !== null
+        ) {
+          ppmDiff = candidate.pointsPerMillion - from.pointsPerMillion;
+        }
+
+        suggestions.push({
+          from,
+          to: candidate,
+          delta: {
+            cost: candidate.nowCost - from.nowCost,
+            bankRemaining: newBank,
+            pointsPerNinetyDiff: Number(perNinetyDiff.toFixed(2)),
+            pointsPerMillionDiff:
+              ppmDiff !== null ? Number(ppmDiff.toFixed(2)) : null,
+          },
+        });
+
+        count += 1;
+      }
+    }
+
+    suggestions.sort((a, b) => {
+      const aDiff = a.delta.pointsPerNinetyDiff ?? 0;
+      const bDiff = b.delta.pointsPerNinetyDiff ?? 0;
+      if (aDiff !== bDiff) return bDiff - aDiff;
+      // secondary: cheaper move first
+      return a.delta.cost - b.delta.cost;
+    });
+
+    return suggestions.slice(0, 20);
+  }
+
+  private getAvailabilityFromRaw(
+    raw: RawBootstrapPlayer | null,
+  ): FplAvailability {
+    if (!raw) return 'AVAILABLE';
+
+    const status = raw.status as string | undefined;
+    const chance =
+      raw.chance_of_playing_next_round ??
+      raw.chance_of_playing_this_round ??
+      null;
+
+    if (status === 'i' || status === 's' || status === 'n' || status === 'u') {
+      return 'UNAVAILABLE';
+    }
+
+    if (typeof chance === 'number') {
+      if (chance <= 25) return 'UNAVAILABLE';
+      if (chance < 75) return 'RISKY';
+    }
+
+    if (status === 'd') {
+      return 'RISKY';
+    }
+
+    // default: 'a' or unknown
+    return 'AVAILABLE';
   }
 
   /**

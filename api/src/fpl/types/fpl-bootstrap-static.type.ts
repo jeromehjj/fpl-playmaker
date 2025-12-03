@@ -17,6 +17,12 @@ export interface RawBootstrapPlayer {
   minutes: number;
   points_per_game: string;
 
+  // availability metrics
+  status: string;
+  news: string;
+  chance_of_playing_this_round: number | null;
+  chance_of_playing_next_round: number | null;
+
   // Keep the rest of the payload but we do not type every field here
   [key: string]: unknown;
 }
