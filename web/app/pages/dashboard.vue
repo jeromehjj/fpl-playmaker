@@ -178,13 +178,142 @@
             </table>
           </div>
         </UCard>
+
+        <!-- Current squad -->
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-semibold">Current Squad</h2>
+              <p v-if="squad" class="text-xs text-white">
+                GW {{ squad.event }} ·
+                Value £{{ (squad.value / 10).toFixed(1) }}m ·
+                Bank £{{ (squad.bank / 10).toFixed(1) }}m
+              </p>
+            </div>
+          </template>
+
+          <div v-if="squadLoading" class="text-sm text-gray-500">
+            Loading squad...
+          </div>
+          <div v-else-if="!squad && squadError" class="text-sm text-red-500">
+            {{ squadError }}
+          </div>
+          <div v-else-if="!squad" class="text-sm text-gray-500">
+            Squad not available.
+          </div>
+          <div v-else class="space-y-4">
+            <!-- Starting XI -->
+            <div>
+              <h3 class="text-sm font-semibold mb-2">Starting XI</h3>
+              <div class="overflow-x-auto">
+                <table class="min-w-full text-xs">
+                  <thead>
+                    <tr class="text-left border-b border-gray-200">
+                      <th class="py-1.5 pr-3">Pos</th>
+                      <th class="py-1.5 pr-3">Player</th>
+                      <th class="py-1.5 pr-3">Club</th>
+                      <th class="py-1.5 pr-3">Price</th>
+                      <th class="py-1.5 pr-3">Role</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="p in sortedStarting"
+                      :key="p.externalId"
+                      class="border-b border-gray-100 last:border-b-0"
+                    >
+                      <td class="py-1.5 pr-3">
+                        {{ p.position }}
+                      </td>
+                      <td class="py-1.5 pr-3">
+                        <span class="font-medium">{{ p.webName }}</span>
+                        <span
+                          v-if="p.fullName"
+                          class="ml-1 text-[10px] text-gray-500"
+                        >
+                          ({{ p.fullName }})
+                        </span>
+                      </td>
+                      <td class="py-1.5 pr-3">
+                        {{ p.club.shortName }}
+                      </td>
+                      <td class="py-1.5 pr-3">
+                        £{{ (p.nowCost / 10).toFixed(1) }}m
+                      </td>
+                      <td class="py-1.5 pr-3">
+                        <span
+                          v-if="p.pick.isCaptain"
+                          class="text-xs font-semibold text-amber-400 mr-1"
+                        >
+                          C
+                        </span>
+                        <span
+                          v-else-if="p.pick.isViceCaptain"
+                          class="text-xs font-semibold text-sky-400 mr-1"
+                        >
+                          VC
+                        </span>
+                        <span v-else class="text-xs text-gray-500">
+                          x{{ p.pick.multiplier }}
+                        </span>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Bench -->
+            <div>
+              <h3 class="text-sm font-semibold mb-2">Bench</h3>
+              <div class="overflow-x-auto">
+                <table class="min-w-full text-xs">
+                  <thead>
+                    <tr class="text-left border-b border-gray-200">
+                      <th class="py-1.5 pr-3">Pos</th>
+                      <th class="py-1.5 pr-3">Player</th>
+                      <th class="py-1.5 pr-3">Club</th>
+                      <th class="py-1.5 pr-3">Price</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr
+                      v-for="p in sortedBench"
+                      :key="p.externalId"
+                      class="border-b border-gray-100 last:border-b-0"
+                    >
+                      <td class="py-1.5 pr-3">
+                        {{ p.position }}
+                      </td>
+                      <td class="py-1.5 pr-3">
+                        <span class="font-medium">{{ p.webName }}</span>
+                        <span
+                          v-if="p.fullName"
+                          class="ml-1 text-[10px] text-gray-500"
+                        >
+                          ({{ p.fullName }})
+                        </span>
+                      </td>
+                      <td class="py-1.5 pr-3">
+                        {{ p.club.shortName }}
+                      </td>
+                      <td class="py-1.5 pr-3">
+                        £{{ (p.nowCost / 10).toFixed(1) }}m
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </UCard>
       </section>
     </section>
   </main>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useApi } from '../composables/useApi';
 
@@ -223,11 +352,85 @@ interface TeamOverview {
   lastSyncedAt: string | null;
 }
 
+type Position = 'GK' | 'DEF' | 'MID' | 'FWD';
+
+interface SquadPlayer {
+  id: number;
+  externalId: number;
+  webName: string;
+  fullName: string | null;
+  position: Position;
+  nowCost: number;
+  valueMillions: number;
+  totalPoints: number | null;
+  pointsPerGame: number | null;
+  pointsPerMillion: number | null;
+  minutes: number | null;
+  club: {
+    id: number;
+    externalId: number;
+    name: string;
+    shortName: string;
+  };
+  pick: {
+    position: number;
+    multiplier: number;
+    isCaptain: boolean;
+    isViceCaptain: boolean;
+    isStarting: boolean;
+  };
+}
+
+interface Squad {
+  event: number;
+  teamId: string;
+  value: number; // tenths of a million
+  bank: number;  // tenths of a million
+  starting: SquadPlayer[];
+  bench: SquadPlayer[];
+}
+
+
 const noTeam = ref(false);
 const team = ref<TeamOverview | null>(null);
 const loading = ref(true);
 const error = ref<string | null>(null);
 const syncing = ref(false);
+
+const squad = ref<Squad | null>(null);
+const squadLoading = ref(false);
+const squadError = ref<string | null>(null);
+
+const sortedStarting = computed(() =>
+  squad.value
+    ? [...squad.value.starting].sort(
+        (a, b) => a.pick.position - b.pick.position,
+      )
+    : [],
+);
+
+const sortedBench = computed(() =>
+  squad.value
+    ? [...squad.value.bench].sort((a, b) => a.pick.position - b.pick.position)
+    : [],
+);
+
+const fetchSquad = async () => {
+  squadLoading.value = true;
+  squadError.value = null;
+
+  try {
+    squad.value = await get<Squad>('/fpl/squad');
+  } catch (e: any) {
+    console.error('fetchSquad error:', e);
+    squad.value = null;
+    squadError.value =
+      e?.data?.message ?? 'Failed to load current squad.';
+  } finally {
+    squadLoading.value = false;
+  }
+};
+
 
 const fetchTeam = async () => {
   loading.value = true;
@@ -236,6 +439,10 @@ const fetchTeam = async () => {
 
   try {
     team.value = await get<TeamOverview>('/fpl/team');
+
+    if (team.value) {
+      await fetchSquad();
+    }
   } catch (e: any) {
     if (e?.status === 401) {
       router.push('/');
@@ -246,6 +453,7 @@ const fetchTeam = async () => {
     if (e?.status === 400 && e?.data?.code === 'NO_FPL_TEAM') {
       team.value = null;
       noTeam.value = true;
+      squad.value = null;
       return;
     }
 

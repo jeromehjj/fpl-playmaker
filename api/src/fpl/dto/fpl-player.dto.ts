@@ -7,6 +7,12 @@ export interface FplPlayerListItemDto {
   fullName: string | null;
   position: FplPosition;
   nowCost: number;
+  // Metric values
+  valueMillions: number;
+  totalPoints: number | null;
+  pointsPerGame: number | null;
+  pointsPerMillion: number | null;
+  minutes: number | null;
   club: {
     id: number;
     externalId: number;
