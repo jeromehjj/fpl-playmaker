@@ -3,6 +3,7 @@ import { Controller, Get, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { FplService } from './fpl.service';
 import type { FplPosition } from './types/fpl-position';
+import { PlayerSortKey } from './types/fpl-list-player-options.type';
 
 @Controller('fpl')
 @UseGuards(JwtAuthGuard)
@@ -26,15 +27,25 @@ export class FplController {
     @Query('search') search?: string,
     @Query('limit') limit?: string,
     @Query('offset') offset?: string,
+    @Query('minMinutes') minMinutes?: string,
+    @Query('sortKey') sortKey?: string,
+    @Query('sortDirection') sortDirection?: string,
   ) {
     const parsedClubId = clubId ? Number(clubId) : undefined;
     const parsedLimit = limit ? Number(limit) : undefined;
     const parsedOffset = offset ? Number(offset) : undefined;
+    const parsedMinMinutes = minMinutes ? Number(minMinutes) : undefined;
 
     const validPositions: FplPosition[] = ['GK', 'DEF', 'MID', 'FWD'];
     const normalizedPosition = validPositions.includes(position as FplPosition)
       ? (position as FplPosition)
       : undefined;
+
+    const normalizedSortKey = sortKey as any as PlayerSortKey | undefined;
+    const normalizedSortDirection =
+      sortDirection === 'ASC' || sortDirection === 'DESC'
+        ? sortDirection
+        : undefined;
 
     return this.fplService.listPlayers({
       clubExternalId:
@@ -45,6 +56,12 @@ export class FplController {
         parsedLimit && !Number.isNaN(parsedLimit) ? parsedLimit : undefined,
       offset:
         parsedOffset && !Number.isNaN(parsedOffset) ? parsedOffset : undefined,
+      minMinutes:
+        parsedMinMinutes && !Number.isNaN(parsedMinMinutes)
+          ? parsedMinMinutes
+          : undefined,
+      sortKey: normalizedSortKey,
+      sortDirection: normalizedSortDirection,
     });
   }
 

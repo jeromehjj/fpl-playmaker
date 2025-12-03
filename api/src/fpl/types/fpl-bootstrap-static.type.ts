@@ -21,7 +21,15 @@ export interface RawBootstrapPlayer {
   [key: string]: unknown;
 }
 
+export interface RawBootstrapEvent {
+  id: number;
+  deadline_time: string; // ISO string
+  finished: boolean;
+  data_checked: boolean;
+}
+
 export interface RawBootstrapStatic {
   teams: RawBootstrapTeam[];
   elements: RawBootstrapPlayer[];
+  events: RawBootstrapEvent[];
 }

@@ -21,11 +21,14 @@ import { FplPlayer } from './entities/fpl-player.entity';
 import {
   RawBootstrapStatic,
   RawBootstrapPlayer,
+  RawBootstrapEvent,
 } from './types/fpl-bootstrap-static.type';
 import { FplPlayerListItemDto } from './dto/fpl-player.dto';
 import { ListPlayersOptions } from './types/fpl-list-player-options.type';
 import { RawFplPicksResponse } from './types/fpl-picks.type';
+import { RawFplFixture } from './types/fpl-fixture.type';
 import { FplSquadDto } from './dto/fpl-squad.dto';
+import type { GameweekState } from './types/fpl-gameweek-state.type';
 
 @Injectable()
 export class FplService {
@@ -40,6 +43,136 @@ export class FplService {
     @InjectRepository(FplPlayer)
     private readonly playerRepository: Repository<FplPlayer>,
   ) {}
+
+  private bootstrapEventsCache: RawBootstrapEvent[] | null = null;
+  private bootstrapEventsFetchedAt: Date | null = null;
+
+  private fixturesCache = new Map<
+    number,
+    { fixtures: RawFplFixture[]; fetchedAt: Date }
+  >();
+
+  private async loadBootstrapEvents(): Promise<RawBootstrapEvent[]> {
+    const now = new Date();
+    if (
+      this.bootstrapEventsCache &&
+      this.bootstrapEventsFetchedAt &&
+      (now.getTime() - this.bootstrapEventsFetchedAt.getTime()) / 3600000 < 12
+    ) {
+      return this.bootstrapEventsCache;
+    }
+
+    const bootstrap = await this.fetchBootstrapStatic();
+    const events = bootstrap.events ?? [];
+    this.bootstrapEventsCache = events;
+    this.bootstrapEventsFetchedAt = now;
+    return events;
+  }
+
+  private async fetchFixturesForEvent(
+    eventId: number,
+  ): Promise<RawFplFixture[]> {
+    const url = `https://fantasy.premierleague.com/api/fixtures/?event=${eventId}`;
+
+    let response: Response;
+    try {
+      response = await fetch(url);
+    } catch {
+      throw new InternalServerErrorException('Failed to call FPL fixtures API');
+    }
+
+    if (!response.ok) {
+      throw new BadGatewayException({
+        statusCode: 502,
+        code: 'FPL_UPSTREAM_ERROR',
+        message: `FPL fixtures API responded with status ${response.status}`,
+      });
+    }
+
+    return (await response.json()) as RawFplFixture[];
+  }
+
+  private async loadFixturesForEvent(
+    eventId: number,
+  ): Promise<RawFplFixture[]> {
+    const cached = this.fixturesCache.get(eventId);
+    const now = new Date();
+
+    if (cached && (now.getTime() - cached.fetchedAt.getTime()) / 3600000 < 12) {
+      return cached.fixtures;
+    }
+
+    const fixtures = await this.fetchFixturesForEvent(eventId);
+    this.fixturesCache.set(eventId, { fixtures, fetchedAt: now });
+    return fixtures;
+  }
+
+  /**
+   * Helper: get gameweek state
+   */
+  private async getGameweekState(
+    currentEventId: number,
+    now: Date,
+  ): Promise<GameweekState> {
+    const events = await this.loadBootstrapEvents();
+    const event = events.find((e) => e.id === currentEventId);
+    if (!event) {
+      return 'GW_FINAL_OR_OFF';
+    }
+
+    const deadline = new Date(event.deadline_time);
+
+    if (now < deadline) {
+      return 'PRE_DEADLINE';
+    }
+
+    if (event.finished && event.data_checked) {
+      return 'GW_FINAL_OR_OFF';
+    }
+
+    if (event.finished && !event.data_checked) {
+      return 'GW_FINISHED_NOT_FINAL';
+    }
+
+    const fixtures = await this.loadFixturesForEvent(currentEventId);
+    const windowBeforeMinutes = 30;
+    const windowAfterMinutes = 150;
+
+    const isLiveFixture = fixtures.some((f) => {
+      if (!f.kickoff_time) return false;
+      const ko = new Date(f.kickoff_time);
+      const diffMinutes = (now.getTime() - ko.getTime()) / 60000;
+      return (
+        diffMinutes >= -windowBeforeMinutes &&
+        diffMinutes <= windowAfterMinutes &&
+        !f.finished
+      );
+    });
+
+    if (isLiveFixture) {
+      return 'DURING_MATCH_WINDOW';
+    }
+
+    return 'BETWEEN_MATCHES_IN_GW';
+  }
+  /**
+   * Helper: gets the live sync time depending on gameweek state
+   * @param state the state of gameweek
+   * @returns the minutes for live-syncing
+   */
+  private getMaxAgeMinutesForState(state: GameweekState): number {
+    switch (state) {
+      case 'DURING_MATCH_WINDOW':
+        return 10; // very fresh while matches are live
+      case 'PRE_DEADLINE':
+      case 'BETWEEN_MATCHES_IN_GW':
+      case 'GW_FINISHED_NOT_FINAL':
+        return 60; // about hourly during an active GW
+      case 'GW_FINAL_OR_OFF':
+      default:
+        return 12 * 60; // relaxed between gameweeks
+    }
+  }
 
   /**
    * Helper: load user and ensure they have an FPL team id.
@@ -221,13 +354,14 @@ export class FplService {
       search,
       offset = 0,
       limit = 50,
+      minMinutes,
+      sortKey,
+      sortDirection,
     } = options;
 
     const qb = this.playerRepository
       .createQueryBuilder('player')
       .leftJoinAndSelect('player.club', 'club')
-      .orderBy('player.nowCost', 'DESC')
-      .addOrderBy('player.webName', 'ASC')
       .limit(Math.min(Math.max(limit, 1), 200)) // guard limits
       .offset(Math.max(offset, 0));
 
@@ -246,6 +380,42 @@ export class FplService {
       );
     }
 
+    if (minMinutes !== undefined) {
+      qb.andWhere(`(player.raw->>'minutes')::int >= :minMinutes`, {
+        minMinutes,
+      });
+    }
+
+    // Dynamic sort
+    const direction = sortDirection === 'ASC' ? 'ASC' : 'DESC';
+    let orderExpr: string;
+
+    switch (sortKey) {
+      case 'TOTAL_POINTS':
+        orderExpr = "(player.raw->>'total_points')::int";
+        break;
+      case 'POINTS_PER_GAME':
+        orderExpr = "(player.raw->>'points_per_game')::float";
+        break;
+      case 'MINUTES':
+        orderExpr = "(player.raw->>'minutes')::int";
+        break;
+      case 'POINTS_PER_MILLION':
+        orderExpr =
+          "CASE WHEN player.nowCost > 0 THEN (player.raw->>'total_points')::float / (player.nowCost / 10.0) ELSE 0 END";
+        break;
+      case 'POINTS_PER_90':
+        orderExpr =
+          "CASE WHEN (player.raw->>'minutes')::int > 0 THEN ((player.raw->>'total_points')::float * 90) / (player.raw->>'minutes')::int ELSE 0 END";
+        break;
+      case 'PRICE':
+      default:
+        orderExpr = 'player.nowCost';
+        break;
+    }
+
+    qb.orderBy(orderExpr, direction).addOrderBy('player.webName', 'ASC');
+
     const players = await qb.getMany();
 
     return players.map((p) => {
@@ -253,13 +423,22 @@ export class FplService {
 
       const valueMillions = p.nowCost / 10;
       const totalPoints = raw?.total_points ?? null;
-      const pointsPerGame = raw
-        ? Number.parseFloat(raw.points_per_game) || null
-        : null;
+      let pointsPerGame: number | null = null;
+
+      if (raw && typeof raw.points_per_game === 'string') {
+        const parsed = Number.parseFloat(raw.points_per_game);
+        pointsPerGame = Number.isNaN(parsed) ? null : parsed;
+      }
+
       const minutes = raw?.minutes ?? null;
       const pointsPerMillion =
         totalPoints !== null && valueMillions > 0
           ? Number((totalPoints / valueMillions).toFixed(2))
+          : null;
+
+      const pointsPerNinety =
+        totalPoints !== null && minutes !== null && minutes > 0
+          ? Number(((totalPoints * 90) / minutes).toFixed(2))
           : null;
 
       return {
@@ -274,6 +453,7 @@ export class FplService {
         pointsPerGame,
         pointsPerMillion,
         minutes,
+        pointsPerNinety,
         club: {
           id: p.club.id,
           externalId: p.club.externalId,
@@ -323,9 +503,13 @@ export class FplService {
 
       const valueMillions = player.nowCost / 10;
       const totalPoints = rawPlayer?.total_points ?? null;
-      const pointsPerGame = rawPlayer
-        ? Number.parseFloat(rawPlayer.points_per_game) || null
-        : null;
+      let pointsPerGame: number | null = null;
+
+      if (rawPlayer && typeof rawPlayer.points_per_game === 'string') {
+        const parsed = Number.parseFloat(rawPlayer.points_per_game);
+        pointsPerGame = Number.isNaN(parsed) ? null : parsed;
+      }
+
       const minutes = rawPlayer?.minutes ?? null;
       const pointsPerMillion =
         totalPoints !== null && valueMillions > 0
@@ -470,14 +654,29 @@ export class FplService {
     });
 
     if (existingTeam) {
-      return {
-        teamId: existingTeam.entryId,
-        raw: existingTeam.raw,
-        lastSyncedAt: existingTeam.lastSyncedAt ?? null,
-      };
+      const now = new Date();
+      const lastSyncedAt = existingTeam.lastSyncedAt ?? new Date(0);
+      const ageMinutes = (now.getTime() - lastSyncedAt.getTime()) / 60000;
+
+      const currentEventId = (existingTeam.raw as RawFplEntry | null)
+        ?.current_event;
+
+      let maxAgeMinutes = 60; // default fallback
+
+      if (currentEventId) {
+        const state = await this.getGameweekState(currentEventId, now);
+        maxAgeMinutes = this.getMaxAgeMinutesForState(state);
+      }
+      if (ageMinutes <= maxAgeMinutes) {
+        return {
+          teamId: existingTeam.entryId,
+          raw: existingTeam.raw,
+          lastSyncedAt: existingTeam.lastSyncedAt ?? null,
+        };
+      }
     }
 
-    // If no snapshot, fetch from FPL and save
+    // If no snapshot or too old for current GW state, fetch from FPL & save
     const fresh = await this.fetchRawEntryForUser(userId);
     const savedTeam = await this.saveSnapshotForUser(
       userId,

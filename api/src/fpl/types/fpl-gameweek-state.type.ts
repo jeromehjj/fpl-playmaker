@@ -1,0 +1,6 @@
+export type GameweekState =
+  | 'PRE_DEADLINE'
+  | 'DURING_MATCH_WINDOW'
+  | 'BETWEEN_MATCHES_IN_GW'
+  | 'GW_FINISHED_NOT_FINAL'
+  | 'GW_FINAL_OR_OFF';
