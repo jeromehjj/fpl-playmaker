@@ -211,6 +211,7 @@
                     <tr class="text-left border-b border-gray-200">
                       <th class="py-1.5 pr-3">Pos</th>
                       <th class="py-1.5 pr-3">Player</th>
+                      <th class="py-1.5 pr-3">Status</th>
                       <th class="py-1.5 pr-3">Club</th>
                       <th class="py-1.5 pr-3">Price</th>
                       <th class="py-1.5 pr-3">Role</th>
@@ -232,6 +233,24 @@
                           class="ml-1 text-[10px] text-gray-500"
                         >
                           ({{ p.fullName }})
+                        </span>
+                      </td>
+                      <td class="py-1.5 pr-3">
+                        <span
+                          :class="[
+                            'text-xs font-medium',
+                            p.availability === 'AVAILABLE'
+                              ? 'text-green-500'
+                              : p.availability === 'RISKY'
+                              ? 'text-amber-500'
+                              : 'text-red-500',
+                          ]"
+                        >
+                          {{ p.availability === 'AVAILABLE'
+                            ? 'Available'
+                            : p.availability === 'RISKY'
+                            ? 'Risky'
+                            : 'Unavailable' }}
                         </span>
                       </td>
                       <td class="py-1.5 pr-3">
@@ -272,6 +291,7 @@
                     <tr class="text-left border-b border-gray-200">
                       <th class="py-1.5 pr-3">Pos</th>
                       <th class="py-1.5 pr-3">Player</th>
+                      <th class="py-1.5 pr-3">Status</th>
                       <th class="py-1.5 pr-3">Club</th>
                       <th class="py-1.5 pr-3">Price</th>
                     </tr>
@@ -295,6 +315,24 @@
                         </span>
                       </td>
                       <td class="py-1.5 pr-3">
+                        <span
+                          :class="[
+                            'text-xs font-medium',
+                            p.availability === 'AVAILABLE'
+                              ? 'text-green-500'
+                              : p.availability === 'RISKY'
+                              ? 'text-amber-500'
+                              : 'text-red-500',
+                          ]"
+                        >
+                          {{ p.availability === 'AVAILABLE'
+                            ? 'Available'
+                            : p.availability === 'RISKY'
+                            ? 'Risky'
+                            : 'Unavailable' }}
+                        </span>
+                      </td>
+                      <td class="py-1.5 pr-3">
                         {{ p.club.shortName }}
                       </td>
                       <td class="py-1.5 pr-3">
@@ -305,6 +343,70 @@
                 </table>
               </div>
             </div>
+          </div>
+        </UCard>
+
+        <UCard>
+          <template #header>
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-semibold">Transfer Suggestions</h2>
+              <p v-if="squad" class="text-xs text-white">
+                Bank: £{{ (squad.bank / 10).toFixed(1) }}m
+              </p>
+            </div>
+          </template>
+
+          <div v-if="suggestionsLoading" class="text-sm text-gray-500">
+            Calculating suggestions...
+          </div>
+          <div v-else-if="suggestionsError" class="text-sm text-red-500">
+            {{ suggestionsError }}
+          </div>
+          <div v-else-if="!suggestions.length" class="text-sm text-gray-500">
+            No clear upgrades found within your budget.
+          </div>
+          <div v-else class="overflow-x-auto">
+            <table class="min-w-full text-xs">
+              <thead>
+                <tr class="text-left border-b border-gray-200">
+                  <th class="py-1.5 pr-3">From</th>
+                  <th class="py-1.5 pr-3">To</th>
+                  <th class="py-1.5 pr-3">Δ Pts/90</th>
+                  <th class="py-1.5 pr-3">Δ Cost</th>
+                  <th class="py-1.5 pr-3">Bank left</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="s in suggestions"
+                  :key="`${s.from.externalId}-${s.to.externalId}`"
+                  class="border-b border-gray-100 last:border-b-0"
+                >
+                  <td class="py-1.5 pr-3">
+                    {{ s.from.webName }}
+                    <span class="text-[10px] text-gray-500">
+                      ({{ s.from.position }})
+                    </span>
+                  </td>
+                  <td class="py-1.5 pr-3">
+                    {{ s.to.webName }}
+                    <span class="text-[10px] text-gray-500">
+                      ({{ s.to.position }})
+                    </span>
+                  </td>
+                  <td class="py-1.5 pr-3">
+                    +{{ s.delta.pointsPerNinetyDiff?.toFixed(2) ?? '0.00' }}
+                  </td>
+                  <td class="py-1.5 pr-3">
+                    {{ s.delta.cost >= 0 ? '+' : '' }}
+                    £{{ (s.delta.cost / 10).toFixed(1) }}m
+                  </td>
+                  <td class="py-1.5 pr-3">
+                    £{{ (s.delta.bankRemaining / 10).toFixed(1) }}m
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </UCard>
       </section>
@@ -353,6 +455,7 @@ interface TeamOverview {
 }
 
 type Position = 'GK' | 'DEF' | 'MID' | 'FWD';
+type Availability = 'AVAILABLE' | 'RISKY' | 'UNAVAILABLE';
 
 interface SquadPlayer {
   id: number;
@@ -366,6 +469,7 @@ interface SquadPlayer {
   pointsPerGame: number | null;
   pointsPerMillion: number | null;
   minutes: number | null;
+  availability: Availability;
   club: {
     id: number;
     externalId: number;
@@ -390,6 +494,38 @@ interface Squad {
   bench: SquadPlayer[];
 }
 
+interface TransferDelta {
+  cost: number;
+  bankRemaining: number;
+  pointsPerNinetyDiff: number | null;
+  pointsPerMillionDiff: number | null;
+}
+
+interface TransferSuggestion {
+  from: SquadPlayer;
+  to: {
+    id: number;
+    externalId: number;
+    webName: string;
+    fullName: string | null;
+    position: Position;
+    nowCost: number;
+    valueMillions: number;
+    totalPoints: number | null;
+    pointsPerGame: number | null;
+    pointsPerMillion: number | null;
+    pointsPerNinety: number | null;
+    minutes: number | null;
+    availability: Availability;
+    club: {
+      id: number;
+      externalId: number;
+      name: string;
+      shortName: string;
+    };
+  };
+  delta: TransferDelta;
+}
 
 const noTeam = ref(false);
 const team = ref<TeamOverview | null>(null);
@@ -400,6 +536,10 @@ const syncing = ref(false);
 const squad = ref<Squad | null>(null);
 const squadLoading = ref(false);
 const squadError = ref<string | null>(null);
+
+const suggestions = ref<TransferSuggestion[]>([]);
+const suggestionsLoading = ref(false);
+const suggestionsError = ref<string | null>(null);
 
 const sortedStarting = computed(() =>
   squad.value
@@ -442,6 +582,7 @@ const fetchTeam = async () => {
 
     if (team.value) {
       await fetchSquad();
+      await fetchTransferSuggestions();
     }
   } catch (e: any) {
     if (e?.status === 401) {
@@ -454,6 +595,7 @@ const fetchTeam = async () => {
       team.value = null;
       noTeam.value = true;
       squad.value = null;
+      suggestions.value = [];
       return;
     }
 
@@ -461,6 +603,24 @@ const fetchTeam = async () => {
     error.value = e?.data?.message ?? 'Failed to load team data.';
   } finally {
     loading.value = false;
+  }
+};
+
+const fetchTransferSuggestions = async () => {
+  suggestionsLoading.value = true;
+  suggestionsError.value = null;
+
+  try {
+    suggestions.value = await get<TransferSuggestion[]>(
+      '/fpl/transfer-suggestions',
+    );
+  } catch (e: any) {
+    console.error('fetchTransferSuggestions error:', e);
+    suggestions.value = [];
+    suggestionsError.value =
+      e?.data?.message ?? 'Failed to load transfer suggestions.';
+  } finally {
+    suggestionsLoading.value = false;
   }
 };
 

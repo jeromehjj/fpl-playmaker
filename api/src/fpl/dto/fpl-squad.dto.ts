@@ -1,3 +1,4 @@
+import { FplAvailability } from '../types/fpl-availability.type';
 import type { FplPosition } from '../types/fpl-position';
 
 export interface FplSquadPlayerDto {
@@ -12,7 +13,9 @@ export interface FplSquadPlayerDto {
   totalPoints: number | null;
   pointsPerGame: number | null;
   pointsPerMillion: number | null;
+  pointsPerNinety: number | null;
   minutes: number | null;
+  availability: FplAvailability;
   club: {
     id: number;
     externalId: number;
