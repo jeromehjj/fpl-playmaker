@@ -13,6 +13,7 @@ export interface FplPlayerListItemDto {
   pointsPerGame: number | null;
   pointsPerMillion: number | null;
   minutes: number | null;
+  pointsPerNinety: number | null;
   club: {
     id: number;
     externalId: number;

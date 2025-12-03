@@ -25,6 +25,36 @@
             class="w-48"
             @keyup.enter="resetAndFetch"
           />
+
+          <UInput
+            v-model.number="filters.minMinutes"
+            type="number"
+            placeholder="Min mins"
+            size="sm"
+            class="w-24"
+            @keyup.enter="resetAndFetch"
+          />
+
+          <USelect
+            v-model="sortKey"
+            :items="sortKeyOptions"
+            value-key="value"
+            label-key="label"
+            placeholder="Sort by"
+            class="w-32"
+            size="sm"
+          />
+
+          <USelect
+            v-model="sortDirection"
+            :items="sortDirectionOptions"
+            value-key="value"
+            label-key="label"
+            class="w-32"
+            size="sm"
+          />
+
+
           <UButton size="sm" :loading="loading" @click="resetAndFetch">
             Apply
           </UButton>
@@ -71,6 +101,32 @@ import { useApi } from '../composables/useApi';
 
 type Position = 'GK' | 'DEF' | 'MID' | 'FWD';
 
+type SortKey =
+  | 'PRICE'
+  | 'TOTAL_POINTS'
+  | 'POINTS_PER_GAME'
+  | 'POINTS_PER_90'
+  | 'POINTS_PER_MILLION'
+  | 'MINUTES';
+
+const sortKey = ref<SortKey>('POINTS_PER_90');
+const sortDirection = ref<'DESC' | 'ASC'>('DESC');
+
+const sortKeyOptions = [
+  { label: 'Price', value: 'PRICE' },
+  { label: 'Total points', value: 'TOTAL_POINTS' },
+  { label: 'Pts/G', value: 'POINTS_PER_GAME' },
+  { label: 'Pts/90', value: 'POINTS_PER_90' },
+  { label: 'Pts/mil', value: 'POINTS_PER_MILLION' },
+  { label: 'Minutes', value: 'MINUTES' },
+];
+
+const sortDirectionOptions = [
+  { label: 'High → Low', value: 'DESC' },
+  { label: 'Low → High', value: 'ASC' },
+];
+
+
 interface Player {
   id: number;
   externalId: number;
@@ -78,6 +134,13 @@ interface Player {
   fullName: string | null;
   position: Position;
   nowCost: number;
+  // Metric values from API
+  valueMillions: number;
+  totalPoints: number | null;
+  pointsPerGame: number | null;
+  pointsPerMillion: number | null;
+  minutes: number | null;
+  pointsPerNinety: number | null;
   club: {
     id: number;
     externalId: number;
@@ -101,6 +164,7 @@ type PositionFilter = Position | 'ALL';
 const filters = reactive({
   position: 'ALL' as PositionFilter,
   search: '',
+  minMinutes: 0,
 });
 
 
@@ -163,6 +227,34 @@ const columns: TableColumn<Player>[] = [
       },
     },
   },
+  {
+    id: 'minutes',
+    header: 'Mins',
+    accessorFn: (row) => row.minutes ?? '-',
+  },
+  {
+    id: 'points',
+    header: 'Pts',
+    accessorFn: (row) => row.totalPoints ?? '-',
+  },
+  {
+    id: 'ppg',
+    header: 'Pts/G',
+    accessorFn: (row) =>
+      row.pointsPerGame !== null ? row.pointsPerGame.toFixed(2) : '-',
+  },
+  {
+    id: 'pp90',
+    header: 'Pts/90',
+    accessorFn: (row) =>
+      row.pointsPerNinety !== null ? row.pointsPerNinety.toFixed(2) : '-',
+  },
+  {
+    id: 'ppm',
+    header: 'Pts/mil',
+    accessorFn: (row) =>
+      row.pointsPerMillion !== null ? row.pointsPerMillion.toFixed(2) : '-',
+  },
 ];
 
 const fetchPlayers = async () => {
@@ -180,6 +272,12 @@ const fetchPlayers = async () => {
     if (filters.search.trim()) {
       params.search = filters.search.trim();
     }
+    if(filters.minMinutes && filters.minMinutes > 0) {
+      params.minMinutes = filters.minMinutes;
+    }
+
+    params.sortKey = sortKey.value;
+    params.sortDirection = sortDirection.value;
 
     const result = await get<Player[]>('/fpl/players', params);
     players.value = result;
@@ -204,13 +302,14 @@ const onPageChange = (newPage: number) => {
   fetchPlayers();
 };
 
-// When filters change, reset to page 1 and refetch
+// When filters or sortKey change, reset to page 1 and refetch
 watch(
-  () => filters.position,
+  () => [filters.position, filters.minMinutes, sortKey.value, sortDirection.value],
   () => {
     resetAndFetch();
   },
 );
+
 
 
 onMounted(() => {
