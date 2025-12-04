@@ -31,6 +31,10 @@ import { FplSquadDto } from './dto/fpl-squad.dto';
 import type { GameweekState } from './types/fpl-gameweek-state.type';
 import { FplTransferSuggestionDto } from './dto/fpl-transfer-suggestion.dto';
 import { FplAvailability } from './types/fpl-availability.type';
+import {
+  FplFixtureTickerDto,
+  FplFixtureTickerRowDto,
+} from './dto/fpl-fixture-ticker.dto';
 
 @Injectable()
 export class FplService {
@@ -107,6 +111,91 @@ export class FplService {
     const fixtures = await this.fetchFixturesForEvent(eventId);
     this.fixturesCache.set(eventId, { fixtures, fetchedAt: now });
     return fixtures;
+  }
+
+  async getFixtureTicker(numEvents = 5): Promise<FplFixtureTickerDto> {
+    const events = await this.loadBootstrapEvents();
+    if (events.length === 0) {
+      return { events: [], rows: [] };
+    }
+
+    // Start from first unfinished event; fallback to last if all finished
+    const firstUpcoming =
+      events.find((e) => !e.finished) ?? events[events.length - 1];
+    const startId = firstUpcoming.id;
+
+    const eventIds = events
+      .map((e) => e.id)
+      .filter((id) => id >= startId)
+      .slice(0, Math.max(1, Math.min(numEvents, 10)));
+
+    const clubs = await this.clubRepository.find();
+    const rowsMap = new Map<number, FplFixtureTickerRowDto>();
+
+    for (const club of clubs) {
+      rowsMap.set(club.externalId, {
+        clubExternalId: club.externalId,
+        clubShortName: club.shortName,
+        fixtures: [],
+      });
+    }
+
+    for (const eventId of eventIds) {
+      const fixtures = await this.loadFixturesForEvent(eventId);
+
+      for (const fx of fixtures) {
+        if (!fx.event || fx.finished) continue;
+
+        const {
+          team_h,
+          team_a,
+          team_h_difficulty,
+          team_a_difficulty,
+          kickoff_time,
+        } = fx;
+
+        const add = (
+          clubExternalId: number,
+          opponentExternalId: number,
+          isHome: boolean,
+          difficulty: number,
+        ) => {
+          const row = rowsMap.get(clubExternalId);
+          const opponent = clubs.find(
+            (c) => c.externalId === opponentExternalId,
+          );
+          if (!row || !opponent) return;
+
+          row.fixtures.push({
+            event: eventId,
+            kickoffTime: kickoff_time,
+            isHome,
+            opponentExternalId: opponentExternalId,
+            opponentShortName: opponent.shortName,
+            difficulty,
+          });
+        };
+
+        add(team_h, team_a, true, team_h_difficulty);
+        add(team_a, team_h, false, team_a_difficulty);
+      }
+    }
+
+    // Sort fixtures per team by event then kickoff
+    for (const row of rowsMap.values()) {
+      row.fixtures.sort((a, b) => {
+        if (a.event !== b.event) return a.event - b.event;
+        if (!a.kickoffTime || !b.kickoffTime) return 0;
+        return (
+          new Date(a.kickoffTime).getTime() - new Date(b.kickoffTime).getTime()
+        );
+      });
+    }
+
+    return {
+      events: eventIds,
+      rows: Array.from(rowsMap.values()).filter((r) => r.fixtures.length > 0),
+    };
   }
 
   /**

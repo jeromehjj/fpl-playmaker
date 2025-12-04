@@ -21,6 +21,12 @@
             </NuxtLink>
 
             <NuxtLink
+              to="/fixtures"
+              class="hover:text-blue-600">
+              Fixtures
+            </NuxtLink>
+
+            <NuxtLink
               to="/dashboard"
               class="hover:text-blue-600"
             >
