@@ -8,6 +8,7 @@ export interface FplSquadPlayerDto {
   fullName: string | null;
   position: FplPosition;
   nowCost: number;
+  gwPoints: number | null;
   // Metric values
   next3DifficultySum: number | null;
   next5DifficultySum: number | null;

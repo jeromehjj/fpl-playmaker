@@ -35,6 +35,7 @@ import {
   FplFixtureTickerDto,
   FplFixtureTickerRowDto,
 } from './dto/fpl-fixture-ticker.dto';
+import { RawEventLiveResponse } from './types/fpl-live-event.type';
 
 @Injectable()
 export class FplService {
@@ -57,6 +58,34 @@ export class FplService {
     number,
     { fixtures: RawFplFixture[]; fetchedAt: Date }
   >();
+
+  private async fetchEventLivePoints(
+    eventId: number,
+  ): Promise<Map<number, number>> {
+    const url = `https://fantasy.premierleague.com/api/event/${eventId}/live/`;
+
+    let response: Response;
+    try {
+      response = await fetch(url);
+    } catch {
+      throw new InternalServerErrorException('Failed to call FPL live API');
+    }
+
+    if (!response.ok) {
+      throw new BadGatewayException({
+        statusCode: 502,
+        code: 'FPL_UPSTREAM_ERROR',
+        message: `FPL live API responded with status ${response.status}`,
+      });
+    }
+
+    const data = (await response.json()) as RawEventLiveResponse;
+    const map = new Map<number, number>();
+    for (const el of data.elements ?? []) {
+      map.set(el.id, el.stats?.total_points ?? 0);
+    }
+    return map;
+  }
 
   private async loadBootstrapEvents(): Promise<RawBootstrapEvent[]> {
     const now = new Date();
@@ -645,6 +674,7 @@ export class FplService {
    */
   async getCurrentSquadForUser(userId: number): Promise<FplSquadDto> {
     const { teamId, currentEvent, raw } = await this.fetchPicksForUser(userId);
+    const livePointsByElement = await this.fetchEventLivePoints(currentEvent);
 
     const elementIds = raw.picks.map((p) => p.element);
     if (elementIds.length === 0) {
@@ -705,6 +735,8 @@ export class FplService {
         next5: null,
       };
 
+      const gwPoints = livePointsByElement.get(player.externalId) ?? null;
+
       const dto = {
         id: player.id,
         externalId: player.externalId,
@@ -712,6 +744,7 @@ export class FplService {
         fullName: player.fullName,
         position: player.position,
         nowCost: player.nowCost,
+        gwPoints,
         next3DifficultySum: sums.next3,
         next5DifficultySum: sums.next5,
         valueMillions,

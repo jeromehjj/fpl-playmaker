@@ -206,79 +206,11 @@
             <div>
               <h3 class="text-sm font-semibold mb-2">Starting XI</h3>
               <div class="overflow-x-auto">
-                <table class="min-w-full text-xs">
-                  <thead>
-                    <tr class="text-left border-b border-gray-200">
-                      <th class="py-1.5 pr-3">Pos</th>
-                      <th class="py-1.5 pr-3">Player</th>
-                      <th class="py-1.5 pr-3">Status</th>
-                      <th class="py-1.5 pr-3">Club</th>
-                      <th class="py-1.5 pr-3">Price</th>
-                      <th class="py-1.5 pr-3">Role</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      v-for="p in sortedStarting"
-                      :key="p.externalId"
-                      class="border-b border-gray-100 last:border-b-0"
-                    >
-                      <td class="py-1.5 pr-3">
-                        {{ p.position }}
-                      </td>
-                      <td class="py-1.5 pr-3">
-                        <span class="font-medium">{{ p.webName }}</span>
-                        <span
-                          v-if="p.fullName"
-                          class="ml-1 text-[10px] text-gray-500"
-                        >
-                          ({{ p.fullName }})
-                        </span>
-                      </td>
-                      <td class="py-1.5 pr-3">
-                        <span
-                          :class="[
-                            'text-xs font-medium',
-                            p.availability === 'AVAILABLE'
-                              ? 'text-green-500'
-                              : p.availability === 'RISKY'
-                              ? 'text-amber-500'
-                              : 'text-red-500',
-                          ]"
-                        >
-                          {{ p.availability === 'AVAILABLE'
-                            ? 'Available'
-                            : p.availability === 'RISKY'
-                            ? 'Risky'
-                            : 'Unavailable' }}
-                        </span>
-                      </td>
-                      <td class="py-1.5 pr-3">
-                        {{ p.club.shortName }}
-                      </td>
-                      <td class="py-1.5 pr-3">
-                        £{{ (p.nowCost / 10).toFixed(1) }}m
-                      </td>
-                      <td class="py-1.5 pr-3">
-                        <span
-                          v-if="p.pick.isCaptain"
-                          class="text-xs font-semibold text-amber-400 mr-1"
-                        >
-                          C
-                        </span>
-                        <span
-                          v-else-if="p.pick.isViceCaptain"
-                          class="text-xs font-semibold text-sky-400 mr-1"
-                        >
-                          VC
-                        </span>
-                        <span v-else class="text-xs text-gray-500">
-                          x{{ p.pick.multiplier }}
-                        </span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                <UTable
+                  :data="sortedStarting"
+                  :columns="startingColumns"
+                  class="min-w-full text-xs"
+                />
               </div>
             </div>
 
@@ -286,61 +218,11 @@
             <div>
               <h3 class="text-sm font-semibold mb-2">Bench</h3>
               <div class="overflow-x-auto">
-                <table class="min-w-full text-xs">
-                  <thead>
-                    <tr class="text-left border-b border-gray-200">
-                      <th class="py-1.5 pr-3">Pos</th>
-                      <th class="py-1.5 pr-3">Player</th>
-                      <th class="py-1.5 pr-3">Status</th>
-                      <th class="py-1.5 pr-3">Club</th>
-                      <th class="py-1.5 pr-3">Price</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr
-                      v-for="p in sortedBench"
-                      :key="p.externalId"
-                      class="border-b border-gray-100 last:border-b-0"
-                    >
-                      <td class="py-1.5 pr-3">
-                        {{ p.position }}
-                      </td>
-                      <td class="py-1.5 pr-3">
-                        <span class="font-medium">{{ p.webName }}</span>
-                        <span
-                          v-if="p.fullName"
-                          class="ml-1 text-[10px] text-gray-500"
-                        >
-                          ({{ p.fullName }})
-                        </span>
-                      </td>
-                      <td class="py-1.5 pr-3">
-                        <span
-                          :class="[
-                            'text-xs font-medium',
-                            p.availability === 'AVAILABLE'
-                              ? 'text-green-500'
-                              : p.availability === 'RISKY'
-                              ? 'text-amber-500'
-                              : 'text-red-500',
-                          ]"
-                        >
-                          {{ p.availability === 'AVAILABLE'
-                            ? 'Available'
-                            : p.availability === 'RISKY'
-                            ? 'Risky'
-                            : 'Unavailable' }}
-                        </span>
-                      </td>
-                      <td class="py-1.5 pr-3">
-                        {{ p.club.shortName }}
-                      </td>
-                      <td class="py-1.5 pr-3">
-                        £{{ (p.nowCost / 10).toFixed(1) }}m
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+                <UTable
+                  :data="sortedBench"
+                  :columns="benchColumns"
+                  class="min-w-full text-xs"
+                />
               </div>
             </div>
           </div>
@@ -430,6 +312,7 @@ interface SquadPlayer {
   fullName: string | null;
   position: Position;
   nowCost: number;
+  gwPoints: number | null;
   valueMillions: number;
   totalPoints: number | null;
   pointsPerGame: number | null;
@@ -576,6 +459,233 @@ const nextFixturesForClub = (clubExternalId: number, limit = 3): TickerFixture[]
   if (!row) return [];
   return row.fixtures.slice(0, limit);
 };
+
+const startingColumns: TableColumn<SquadPlayer>[] = [
+  {
+    accessorKey: 'position',
+    header: 'Pos',
+  },
+  {
+    id: 'player',
+    header: 'Player',
+    cell: ({ row }) => {
+      const p = row.original as SquadPlayer;
+
+      let roleLabel: string | null = null;
+      let roleClass = '';
+      if (p.pick.isCaptain) {
+        roleLabel = 'C';
+        roleClass = 'text-amber-400';
+      } else if (p.pick.isViceCaptain) {
+        roleLabel = 'VC';
+        roleClass = 'text-sky-400';
+      }
+
+      const roleBadge =
+        roleLabel !== null
+          ? h(
+              'span',
+              {
+                class: `text-xs font-semibold mr-1 ${roleClass}`,
+              },
+              roleLabel,
+            )
+          : null;
+
+      return h('span', [
+        roleBadge,
+        p.webName,
+        p.fullName
+          ? h(
+              'span',
+              { class: 'ml-1 text-[10px] text-gray-500' },
+              `(${p.fullName})`,
+            )
+          : null,
+      ]);
+    },
+  },
+  {
+    id: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const p = row.original as SquadPlayer;
+      const status = p.availability;
+      const label =
+        status === 'AVAILABLE'
+          ? 'Available'
+          : status === 'RISKY'
+          ? 'Risky'
+          : 'Unavailable';
+      const color =
+        status === 'AVAILABLE'
+          ? 'text-green-500'
+          : status === 'RISKY'
+          ? 'text-amber-500'
+          : 'text-red-500';
+      return h('span', { class: `text-xs font-medium ${color}` }, label);
+    },
+  },
+  {
+    id: 'club',
+    header: 'Club',
+    accessorFn: (row) => row.club.shortName,
+  },
+  {
+    id: 'price',
+    header: 'Price',
+    cell: ({ row }) => {
+      const p = row.original as SquadPlayer;
+      return `£${(p.nowCost / 10).toFixed(1)}m`;
+    },
+  },
+  {
+    id: 'fixtures',
+    header: 'Next 3 fixtures',
+    cell: ({ row }) => {
+      const p = row.original as SquadPlayer;
+      const fixtures = nextFixturesForClub(p.club.externalId, 3);
+      if (!fixtures.length) {
+        return h('span', { class: 'text-gray-400' }, '-');
+      }
+
+      return h(
+        'div',
+        { class: 'flex flex-wrap gap-1' },
+        fixtures.map((fx) =>
+          h(
+            UBadge,
+            {
+              key: `${fx.event}-${fx.opponentExternalId}`,
+              class: 'whitespace-nowrap',
+              variant: 'subtle',
+              color: difficultyBadgeColor(fx.difficulty),
+            },
+            () =>
+              `${fx.isHome ? 'H' : 'A'} ${fx.opponentShortName} (${
+                fx.difficulty
+              })`,
+          ),
+        ),
+      );
+    },
+  },
+  {
+    id: 'gwPoints',
+    header: 'GW pts',
+    cell: ({ row }) => {
+      const p = row.original as SquadPlayer;
+      if (p.gwPoints === null) {
+        return '-';
+      }
+
+      return `${p.pick.multiplier * p.gwPoints}`;
+    },
+  },
+];
+
+
+const benchColumns: TableColumn<SquadPlayer>[] = [
+  {
+    accessorKey: 'position',
+    header: 'Pos',
+  },
+  {
+    id: 'player',
+    header: 'Player',
+    cell: ({ row }) => {
+      const p = row.original as SquadPlayer;
+      return h('span', [
+        p.webName,
+        p.fullName
+          ? h(
+              'span',
+              { class: 'ml-1 text-[10px] text-gray-500' },
+              `(${p.fullName})`,
+            )
+          : null,
+      ]);
+    },
+  },
+  {
+    id: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+      const p = row.original as SquadPlayer;
+      const status = p.availability;
+      const label =
+        status === 'AVAILABLE'
+          ? 'Available'
+          : status === 'RISKY'
+          ? 'Risky'
+          : 'Unavailable';
+      const color =
+        status === 'AVAILABLE'
+          ? 'text-green-500'
+          : status === 'RISKY'
+          ? 'text-amber-500'
+          : 'text-red-500';
+      return h('span', { class: `text-xs font-medium ${color}` }, label);
+    },
+  },
+  {
+    id: 'club',
+    header: 'Club',
+    accessorFn: (row) => row.club.shortName,
+  },
+  {
+    id: 'fixtures',
+    header: 'Next 3 fixtures',
+    cell: ({ row }) => {
+      const p = row.original as SquadPlayer;
+      const fixtures = nextFixturesForClub(p.club.externalId, 3);
+      if (!fixtures.length) {
+        return h('span', { class: 'text-gray-400' }, '-');
+      }
+
+      return h(
+        'div',
+        { class: 'flex flex-wrap gap-1' },
+        fixtures.map((fx) =>
+          h(
+            UBadge,
+            {
+              key: `${fx.event}-${fx.opponentExternalId}`,
+              class: 'whitespace-nowrap',
+              variant: 'subtle',
+              color: difficultyBadgeColor(fx.difficulty),
+            },
+            () =>
+              `${fx.isHome ? 'H' : 'A'} ${fx.opponentShortName} (${
+                fx.difficulty
+              })`,
+          ),
+        ),
+      );
+    },
+  },
+  {
+    id: 'price',
+    header: 'Price',
+    cell: ({ row }) => {
+      const p = row.original as SquadPlayer;
+      return `£${(p.nowCost / 10).toFixed(1)}m`;
+    },
+  },
+  {
+    id: 'gwPoints',
+    header: 'GW pts',
+    cell: ({ row }) => {
+      const p = row.original as SquadPlayer;
+      if (p.gwPoints === null) {
+        return '-';
+      }
+
+      return `${p.gwPoints}`;
+    },
+  },
+];
+
 
 const suggestionColumns: TableColumn<TransferSuggestion>[] = [
   {
