@@ -374,6 +374,7 @@
                   <th class="py-1.5 pr-3">Δ Pts/90</th>
                   <th class="py-1.5 pr-3">Δ Cost</th>
                   <th class="py-1.5 pr-3">Bank left</th>
+                  <th class="py-1.5 pr-3">Next 5 fixtures</th>
                 </tr>
               </thead>
               <tbody>
@@ -388,21 +389,49 @@
                       ({{ s.from.position }})
                     </span>
                   </td>
+
                   <td class="py-1.5 pr-3">
                     {{ s.to.webName }}
                     <span class="text-[10px] text-gray-500">
                       ({{ s.to.position }})
                     </span>
                   </td>
+                 
                   <td class="py-1.5 pr-3">
                     +{{ s.delta.pointsPerNinetyDiff?.toFixed(2) ?? '0.00' }}
                   </td>
+
                   <td class="py-1.5 pr-3">
                     {{ s.delta.cost >= 0 ? '+' : '' }}
                     £{{ (s.delta.cost / 10).toFixed(1) }}m
                   </td>
+
                   <td class="py-1.5 pr-3">
                     £{{ (s.delta.bankRemaining / 10).toFixed(1) }}m
+                  </td>
+
+                   <!-- NEW: mini fixture ticker -->
+                  <td class="py-1.5 pr-3">
+                    <div class="flex flex-wrap gap-1">
+                      <UBadge
+                        v-for="fx in nextFixturesForClub(s.to.club.externalId, 5)"
+                        :key="`${fx.event}-${fx.opponentExternalId}`"
+                        class="whitespace-nowrap"
+                        variant="subtle"
+                        :color="difficultyBadgeColor(fx.difficulty)"
+                      >
+                        {{ fx.isHome ? 'H' : 'A' }}
+                        {{ fx.opponentShortName }}
+                        ({{ fx.difficulty }})
+                      </UBadge>
+
+                      <span
+                        v-if="!nextFixturesForClub(s.to.club.externalId, 3).length"
+                        class="text-gray-400"
+                      >
+                        –
+                      </span>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -510,6 +539,8 @@ interface TransferSuggestion {
     fullName: string | null;
     position: Position;
     nowCost: number;
+    next3DifficultySum: number | null;
+    next5DifficultySum: number | null;
     valueMillions: number;
     totalPoints: number | null;
     pointsPerGame: number | null;
@@ -526,6 +557,31 @@ interface TransferSuggestion {
   };
   delta: TransferDelta;
 }
+
+interface TickerFixture {
+  event: number;
+  kickoffTime: string | null;
+  isHome: boolean;
+  opponentExternalId: number;
+  opponentShortName: string | null;
+  difficulty: number;
+}
+
+interface TickerRow {
+  clubExternalId: number;
+  clubShortName: string;
+  fixtures: TickerFixture[];
+}
+
+interface FixtureTicker {
+  events: number[];
+  rows: TickerRow[];
+}
+
+const fixtureTicker = ref<FixtureTicker | null>(null);
+const fixtureTickerLoading = ref(false);
+const fixtureTickerError = ref<string | null>(null);
+
 
 const noTeam = ref(false);
 const team = ref<TeamOverview | null>(null);
@@ -554,6 +610,50 @@ const sortedBench = computed(() =>
     ? [...squad.value.bench].sort((a, b) => a.pick.position - b.pick.position)
     : [],
 );
+
+const fetchFixtureTicker = async () => {
+  fixtureTickerLoading.value = true;
+  fixtureTickerError.value = null;
+
+  try {
+    fixtureTicker.value = await get<FixtureTicker>('/fpl/fixture-ticker', {
+      events: 6, // enough for your “next 3/5” context
+    });
+  } catch (e: any) {
+    console.error('fetchFixtureTicker error:', e);
+    fixtureTicker.value = null;
+    fixtureTickerError.value =
+      e?.data?.message ?? 'Failed to load fixtures.';
+  } finally {
+    fixtureTickerLoading.value = false;
+  }
+};
+
+const nextFixturesForClub = (clubExternalId: number, limit = 5): TickerFixture[] => {
+  const tickerValue = fixtureTicker.value;
+  if (!tickerValue) return [];
+  const row = tickerValue.rows.find(r => r.clubExternalId === clubExternalId);
+  if (!row) return [];
+  return row.fixtures.slice(0, limit);
+};
+
+const difficultyBadgeColor = (d: number): "error" | "primary" | "secondary" | "success" | "info" | "warning" | "neutral" | undefined => {
+  switch (d) {
+    case 1:
+      return 'success';
+    case 2:
+      return 'primary';
+    case 3:
+      return 'neutral';
+    case 4:
+      return 'warning';
+    case 5:
+      return 'error';
+    default:
+      return 'neutral';
+  }
+};
+
 
 const fetchSquad = async () => {
   squadLoading.value = true;
@@ -640,5 +740,6 @@ const refreshTeam = async () => {
 
 onMounted(() => {
   fetchTeam();
+  fetchFixtureTicker();
 });
 </script>

@@ -9,6 +9,8 @@ export interface FplPlayerListItemDto {
   position: FplPosition;
   nowCost: number;
   // Metric values
+  next3DifficultySum: number | null;
+  next5DifficultySum: number | null;
   valueMillions: number;
   totalPoints: number | null;
   pointsPerGame: number | null;

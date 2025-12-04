@@ -265,6 +265,21 @@ export class FplService {
     }
   }
 
+  private async getMinMinutesForPointsPerNinety(): Promise<number> {
+    const events = await this.loadBootstrapEvents();
+    if (events.length === 0) {
+      return 60; // fallback: one gameweek
+    }
+
+    // Count events that are effectively "played"
+    const playedCount = events.filter(
+      (e) => e.finished || e.data_checked,
+    ).length;
+
+    const gwCount = playedCount > 0 ? playedCount : 1;
+    return gwCount * 60; // 60 mins per GW
+  }
+
   /**
    * Helper: load user and ensure they have an FPL team id.
    */
@@ -508,10 +523,17 @@ export class FplService {
     qb.orderBy(orderExpr, direction).addOrderBy('player.webName', 'ASC');
 
     const players = await qb.getMany();
+    const difficultyByClub =
+      await this.getUpcomingFixtureDifficultySumsByClub();
+    const minMinutesForP90 = await this.getMinMinutesForPointsPerNinety();
 
     return players.map((p) => {
       const raw = (p.raw ?? null) as RawBootstrapPlayer | null;
       const availability = this.getAvailabilityFromRaw(raw);
+      const sums = difficultyByClub.get(p.club.externalId) ?? {
+        next3: null,
+        next5: null,
+      };
 
       const valueMillions = p.nowCost / 10;
       const totalPoints = raw?.total_points ?? null;
@@ -529,7 +551,7 @@ export class FplService {
           : null;
 
       const pointsPerNinety =
-        totalPoints !== null && minutes !== null && minutes > 0
+        totalPoints !== null && minutes !== null && minutes >= minMinutesForP90
           ? Number(((totalPoints * 90) / minutes).toFixed(2))
           : null;
 
@@ -540,6 +562,8 @@ export class FplService {
         fullName: p.fullName,
         position: p.position,
         nowCost: p.nowCost,
+        next3DifficultySum: sums.next3,
+        next5DifficultySum: sums.next5,
         valueMillions,
         totalPoints,
         pointsPerGame,
@@ -555,6 +579,66 @@ export class FplService {
         },
       };
     });
+  }
+
+  private async getUpcomingFixtureDifficultySumsByClub(): Promise<
+    Map<number, { next3: number | null; next5: number | null }>
+  > {
+    type ClubFixtureDifficulty = {
+      event: number;
+      difficulty: number;
+    };
+
+    const events = await this.loadBootstrapEvents();
+    if (events.length === 0) return new Map();
+
+    const firstUpcoming =
+      events.find((e) => !e.finished) ?? events[events.length - 1];
+    const eventIds = events
+      .map((e) => e.id)
+      .filter((id) => id >= firstUpcoming.id)
+      .slice(0, 5); // up to next 5 GWs
+
+    const byClub = new Map<number, ClubFixtureDifficulty[]>();
+
+    for (const eventId of eventIds) {
+      const fixtures = await this.loadFixturesForEvent(eventId);
+
+      for (const fx of fixtures) {
+        if (!fx.event || fx.finished) continue;
+
+        const add = (clubId: number, difficulty: number) => {
+          const arr = byClub.get(clubId) ?? [];
+          arr.push({ event: eventId, difficulty });
+          byClub.set(clubId, arr);
+        };
+
+        add(fx.team_h, fx.team_h_difficulty);
+        add(fx.team_a, fx.team_a_difficulty);
+      }
+    }
+
+    const result = new Map<
+      number,
+      { next3: number | null; next5: number | null }
+    >();
+
+    for (const [clubId, fixtures] of byClub.entries()) {
+      fixtures.sort((a, b) => a.event - b.event);
+
+      const slice3 = fixtures.slice(0, 3);
+      const slice5 = fixtures.slice(0, 5);
+
+      const d3 = slice3.reduce((sum, f) => sum + f.difficulty, 0);
+      const d5 = slice5.reduce((sum, f) => sum + f.difficulty, 0);
+
+      result.set(clubId, {
+        next3: fixtures.length ? d3 : null,
+        next5: fixtures.length ? d5 : null,
+      });
+    }
+
+    return result;
   }
 
   /**
@@ -581,6 +665,9 @@ export class FplService {
     });
 
     const byExternalId = new Map(players.map((p) => [p.externalId, p]));
+    const difficultyByClub =
+      await this.getUpcomingFixtureDifficultySumsByClub();
+    const minMinutesForP90 = await this.getMinMinutesForPointsPerNinety();
 
     const starting: FplSquadDto['starting'] = [];
     const bench: FplSquadDto['bench'] = [];
@@ -611,9 +698,14 @@ export class FplService {
           : null;
 
       const pointsPerNinety =
-        totalPoints !== null && minutes !== null && minutes > 0
+        totalPoints !== null && minutes !== null && minutes >= minMinutesForP90
           ? Number(((totalPoints * 90) / minutes).toFixed(2))
           : null;
+
+      const sums = difficultyByClub.get(player.club.externalId) ?? {
+        next3: null,
+        next5: null,
+      };
 
       const dto = {
         id: player.id,
@@ -622,6 +714,8 @@ export class FplService {
         fullName: player.fullName,
         position: player.position,
         nowCost: player.nowCost,
+        next3DifficultySum: sums.next3,
+        next5DifficultySum: sums.next5,
         valueMillions,
         totalPoints,
         pointsPerGame,
@@ -719,7 +813,6 @@ export class FplService {
         ) {
           ppmDiff = candidate.pointsPerMillion - from.pointsPerMillion;
         }
-
         suggestions.push({
           from,
           to: candidate,
@@ -737,10 +830,15 @@ export class FplService {
     }
 
     suggestions.sort((a, b) => {
+      // primary: bigger pts/90 gain first
       const aDiff = a.delta.pointsPerNinetyDiff ?? 0;
       const bDiff = b.delta.pointsPerNinetyDiff ?? 0;
       if (aDiff !== bDiff) return bDiff - aDiff;
-      // secondary: cheaper move first
+      // secondary: easier next 3 fixtures first
+      const aNext3 = a.to.next3DifficultySum ?? Number.POSITIVE_INFINITY;
+      const bNext3 = b.to.next3DifficultySum ?? Number.POSITIVE_INFINITY;
+      if (aNext3 !== bNext3) return aNext3 - bNext3;
+      // tertiary: cheaper move first
       return a.delta.cost - b.delta.cost;
     });
 
