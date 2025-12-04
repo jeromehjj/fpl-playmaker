@@ -1,6 +1,6 @@
 <template>
   <main class="min-h-screen bg-gray-100 p-6">
-    <section class="max-w-4xl mx-auto space-y-6">
+    <section class="mx-auto space-y-6 lg:max-w-8xl">
       <!-- Header -->
       <header class="flex justify-between items-center gap-3">
         <div>
