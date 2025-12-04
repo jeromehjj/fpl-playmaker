@@ -525,7 +525,6 @@ export class FplService {
     const players = await qb.getMany();
     const difficultyByClub =
       await this.getUpcomingFixtureDifficultySumsByClub();
-    const minMinutesForP90 = await this.getMinMinutesForPointsPerNinety();
 
     return players.map((p) => {
       const raw = (p.raw ?? null) as RawBootstrapPlayer | null;
@@ -551,7 +550,7 @@ export class FplService {
           : null;
 
       const pointsPerNinety =
-        totalPoints !== null && minutes !== null && minutes >= minMinutesForP90
+        totalPoints !== null && minutes !== null && minutes > 0
           ? Number(((totalPoints * 90) / minutes).toFixed(2))
           : null;
 
@@ -667,7 +666,6 @@ export class FplService {
     const byExternalId = new Map(players.map((p) => [p.externalId, p]));
     const difficultyByClub =
       await this.getUpcomingFixtureDifficultySumsByClub();
-    const minMinutesForP90 = await this.getMinMinutesForPointsPerNinety();
 
     const starting: FplSquadDto['starting'] = [];
     const bench: FplSquadDto['bench'] = [];
@@ -698,7 +696,7 @@ export class FplService {
           : null;
 
       const pointsPerNinety =
-        totalPoints !== null && minutes !== null && minutes >= minMinutesForP90
+        totalPoints !== null && minutes !== null && minutes > 0
           ? Number(((totalPoints * 90) / minutes).toFixed(2))
           : null;
 
@@ -762,10 +760,11 @@ export class FplService {
     userId: number,
   ): Promise<FplTransferSuggestionDto[]> {
     const squad = await this.getCurrentSquadForUser(userId);
+    const minMinutesPer90 = await this.getMinMinutesForPointsPerNinety();
 
     const allPlayers = await this.listPlayers({
       limit: 1000,
-      minMinutes: 360, // only reasonably nailed players
+      minMinutes: minMinutesPer90, // only reasonably nailed players
       sortKey: 'POINTS_PER_90',
       sortDirection: 'DESC',
     });

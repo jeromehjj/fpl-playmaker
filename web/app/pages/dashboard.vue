@@ -365,77 +365,13 @@
           <div v-else-if="!suggestions.length" class="text-sm text-gray-500">
             No clear upgrades found within your budget.
           </div>
-          <div v-else class="overflow-x-auto">
-            <table class="min-w-full text-xs">
-              <thead>
-                <tr class="text-left border-b border-gray-200">
-                  <th class="py-1.5 pr-3">From</th>
-                  <th class="py-1.5 pr-3">To</th>
-                  <th class="py-1.5 pr-3">Δ Pts/90</th>
-                  <th class="py-1.5 pr-3">Δ Cost</th>
-                  <th class="py-1.5 pr-3">Bank left</th>
-                  <th class="py-1.5 pr-3">Next 5 fixtures</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="s in suggestions"
-                  :key="`${s.from.externalId}-${s.to.externalId}`"
-                  class="border-b border-gray-100 last:border-b-0"
-                >
-                  <td class="py-1.5 pr-3">
-                    {{ s.from.webName }}
-                    <span class="text-[10px] text-gray-500">
-                      ({{ s.from.position }})
-                    </span>
-                  </td>
-
-                  <td class="py-1.5 pr-3">
-                    {{ s.to.webName }}
-                    <span class="text-[10px] text-gray-500">
-                      ({{ s.to.position }})
-                    </span>
-                  </td>
-                 
-                  <td class="py-1.5 pr-3">
-                    +{{ s.delta.pointsPerNinetyDiff?.toFixed(2) ?? '0.00' }}
-                  </td>
-
-                  <td class="py-1.5 pr-3">
-                    {{ s.delta.cost >= 0 ? '+' : '' }}
-                    £{{ (s.delta.cost / 10).toFixed(1) }}m
-                  </td>
-
-                  <td class="py-1.5 pr-3">
-                    £{{ (s.delta.bankRemaining / 10).toFixed(1) }}m
-                  </td>
-
-                   <!-- NEW: mini fixture ticker -->
-                  <td class="py-1.5 pr-3">
-                    <div class="flex flex-wrap gap-1">
-                      <UBadge
-                        v-for="fx in nextFixturesForClub(s.to.club.externalId, 5)"
-                        :key="`${fx.event}-${fx.opponentExternalId}`"
-                        class="whitespace-nowrap"
-                        variant="subtle"
-                        :color="difficultyBadgeColor(fx.difficulty)"
-                      >
-                        {{ fx.isHome ? 'H' : 'A' }}
-                        {{ fx.opponentShortName }}
-                        ({{ fx.difficulty }})
-                      </UBadge>
-
-                      <span
-                        v-if="!nextFixturesForClub(s.to.club.externalId, 3).length"
-                        class="text-gray-400"
-                      >
-                        –
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+          
+          <div v-else>
+            <UTable
+              :data="suggestions"
+              :columns="suggestionColumns"
+              class="min-w-full text-xs"
+            />
           </div>
         </UCard>
       </section>
@@ -444,7 +380,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, h, onMounted, ref, resolveComponent } from 'vue';
+import type { TableColumn } from '@nuxt/ui';
 import { useRouter } from 'vue-router';
 import { useApi } from '../composables/useApi';
 
@@ -578,6 +515,9 @@ interface FixtureTicker {
   rows: TickerRow[];
 }
 
+const UBadge = resolveComponent('UBadge');
+
+
 const fixtureTicker = ref<FixtureTicker | null>(null);
 const fixtureTickerLoading = ref(false);
 const fixtureTickerError = ref<string | null>(null);
@@ -617,7 +557,7 @@ const fetchFixtureTicker = async () => {
 
   try {
     fixtureTicker.value = await get<FixtureTicker>('/fpl/fixture-ticker', {
-      events: 6, // enough for your “next 3/5” context
+      events: 5, // enough for your “next 3/5” context
     });
   } catch (e: any) {
     console.error('fetchFixtureTicker error:', e);
@@ -629,13 +569,105 @@ const fetchFixtureTicker = async () => {
   }
 };
 
-const nextFixturesForClub = (clubExternalId: number, limit = 5): TickerFixture[] => {
+const nextFixturesForClub = (clubExternalId: number, limit = 3): TickerFixture[] => {
   const tickerValue = fixtureTicker.value;
   if (!tickerValue) return [];
   const row = tickerValue.rows.find(r => r.clubExternalId === clubExternalId);
   if (!row) return [];
   return row.fixtures.slice(0, limit);
 };
+
+const suggestionColumns: TableColumn<TransferSuggestion>[] = [
+  {
+    id: 'from',
+    header: 'From',
+    cell: ({ row }) => {
+      const s = row.original as TransferSuggestion;
+      return h('span', [
+        s.from.webName,
+        ' ',
+        h(
+          'span',
+          { class: 'text-[10px] text-gray-500' },
+          `(${s.from.position})`,
+        ),
+      ]);
+    },
+  },
+  {
+    id: 'to',
+    header: 'To',
+    cell: ({ row }) => {
+      const s = row.original as TransferSuggestion;
+      return h('span', [
+        s.to.webName,
+        ' ',
+        h(
+          'span',
+          { class: 'text-[10px] text-gray-500' },
+          `(${s.to.position})`,
+        ),
+      ]);
+    },
+  },
+  {
+    id: 'pp90',
+    header: '↑ Pts/90',
+    cell: ({ row }) => {
+      const diff = row.original.delta.pointsPerNinetyDiff ?? 0;
+      return `+${diff.toFixed(2)}`;
+    },
+  },
+  {
+    id: 'cost',
+    header: '↑ Cost',
+    cell: ({ row }) => {
+      const cost = row.original.delta.cost;
+      const sign = cost >= 0 ? '+' : '-';
+      return `${sign}£${(Math.abs(cost) / 10).toFixed(1)}m`;
+    },
+  },
+  {
+    id: 'bank',
+    header: 'Bank left',
+    cell: ({ row }) => {
+      const bank = row.original.delta.bankRemaining;
+      return `£${(bank / 10).toFixed(1)}m`;
+    },
+  },
+  {
+    id: 'fixtures',
+    header: 'Next 3 fixtures',
+    cell: ({ row }) => {
+      const s = row.original as TransferSuggestion;
+      const fixtures = nextFixturesForClub(s.to.club.externalId, 3);
+      if (!fixtures.length) {
+        return h('span', { class: 'text-gray-400' }, '–');
+      }
+
+      return h(
+        'div',
+        { class: 'flex flex-wrap gap-1' },
+        fixtures.map((fx) =>
+          h(
+            UBadge,
+            {
+              key: `${fx.event}-${fx.opponentExternalId}`,
+              class: 'whitespace-nowrap',
+              variant: 'subtle',
+              color: difficultyBadgeColor(fx.difficulty),
+            },
+            () =>
+              `${fx.isHome ? 'H' : 'A'} ${fx.opponentShortName} (${
+                fx.difficulty
+              })`,
+          ),
+        ),
+      );
+    },
+  },
+];
+
 
 const difficultyBadgeColor = (d: number): "error" | "primary" | "secondary" | "success" | "info" | "warning" | "neutral" | undefined => {
   switch (d) {
