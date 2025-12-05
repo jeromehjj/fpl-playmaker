@@ -1,42 +1,52 @@
 <template>
   <UCard ref="cardRef">
-    <div class="flex flex-wrap items-center gap-3 justify-between">
-      <div class="flex flex-wrap gap-2 items-center">
-        <USelect
-          v-model="filters.position"
-          :items="positionOptions"
-          value-key="value"
-          label-key="label"
-          placeholder="All positions"
-          class="w-40"
-          size="sm"
-        />
+    <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      <div class="flex flex-wrap gap-3 items-end">
+        <UFormField label="Position" class="w-40">
+          <USelect
+            v-model="filters.position"
+            :items="positionOptions"
+            value-key="value"
+            label-key="label"
+            placeholder="All positions"
+            size="sm"
+            class="w-full"
+          />
+        </UFormField>
 
-        <USelect
-          v-model="filters.availability"
-          :items="statusOptions"
-          value-key="value"
-          label-key="label"
-          placeholder="All status"
-          class="w-40"
-          size="sm"
-        />
+        <UFormField label="Status" class="w-40">
+          <USelect
+            v-model="filters.availability"
+            :items="statusOptions"
+            value-key="value"
+            label-key="label"
+            placeholder="All status"
+            size="sm"
+            class="w-full"
+          />
+        </UFormField>
 
-        <UInput
-          v-model="filters.search"
-          placeholder="Search for player..."
-          size="sm"
-          class="w-56"
-        />
+        <UFormField label="Search" class="w-60">
+          <UInput
+            v-model="filters.search"
+            placeholder="Search for player..."
+            size="sm"
+            class="w-full"
+          />
+        </UFormField>
 
-        <UInput
-          v-model.number="filters.minMinutes"
-          type="number"
-          placeholder="e.g. 180"
-          size="sm"
-          class="w-32"
-        />
+        <UFormField label="Min. minutes" class="w-40">
+          <UInputNumber
+            v-model="filters.minMinutes"
+            :min="0"
+            placeholder="180"
+            size="sm"
+            class="w-full"
+          />
+        </UFormField>
+      </div>
 
+      <div class="flex gap-2 justify-end">
         <UButton size="sm" :loading="loading" @click="onPageChange(1)">
           Apply
         </UButton>
