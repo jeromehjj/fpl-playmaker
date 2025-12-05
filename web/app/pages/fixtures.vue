@@ -36,27 +36,12 @@
 import { h, computed, onMounted, ref, resolveComponent } from 'vue';
 import type { TableColumn } from '@nuxt/ui';
 import { useApi } from '../composables/useApi';
-
-
-type TickerFixture = {
-  event: number;
-  kickoffTime: string | null;
-  isHome: boolean;
-  opponentExternalId: number;
-  opponentShortName: string | null;
-  difficulty: number;
-}
-
-type TickerRow = {
-  clubExternalId: number;
-  clubShortName: string;
-  fixtures: TickerFixture[];
-}
-
-type FixtureTicker = {
-  events: number[];
-  rows: TickerRow[];
-}
+import type {
+  FixtureTicker,
+  TickerFixture,
+  TickerRow,
+} from '../types/fpl-common';
+import { difficultyBadgeColor } from '../utils/fpl-ui';
 
 const { get } = useApi();
 
@@ -170,24 +155,6 @@ const fetchTicker = async () => {
     loading.value = false;
   }
 };
-
-const difficultyBadgeColor = (d: number): string => {
-  switch (d) {
-    case 1:
-      return 'success';
-    case 2:
-      return 'primary';
-    case 3:
-      return 'neutral';
-    case 4:
-      return 'warning';
-    case 5:
-      return 'error';
-    default:
-      return 'neutral';
-  }
-};
-
 
 onMounted(() => {
   fetchTicker();
