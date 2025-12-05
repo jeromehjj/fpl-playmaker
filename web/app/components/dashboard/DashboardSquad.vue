@@ -29,7 +29,7 @@
       />
 
       <!-- Pitch view -->
-      <section v-if="viewMode === 'PITCH'">
+      <section v-show="viewMode === 'PITCH'">
         <h3 class="mb-2 text-sm font-semibold">Starting XI</h3>
 
         <div
@@ -87,12 +87,12 @@
                       :class="availabilityDotClass(p.availability)"
                     />
 
-                    <!-- Club crest or short name -->
+                    <!-- Club jersey or short name -->
                     <img
-                      v-if="clubLogo(p)"
-                      :src="clubLogo(p)"
+                      v-if="clubJersey(p)"
+                      :src="clubJersey(p)"
                       :alt="p.club.shortName"
-                      class="mb-1 h-6 w-6 object-contain"
+                      class="mb-1 h-10 w-10 object-contain drop-shadow"
                     />
                     <div
                       v-else
@@ -135,10 +135,10 @@
               />
 
               <img
-                v-if="clubLogo(p)"
-                :src="clubLogo(p)"
+                v-if="clubJersey(p)"
+                :src="clubJersey(p)"
                 :alt="p.club.shortName"
-                class="mb-1 h-6 w-6 object-contain"
+                class="mb-1 h-8 w-8 object-contain drop-shadow"
               />
               <div
                 v-else
@@ -163,7 +163,7 @@
       </section>
 
       <!-- List view (original tables) -->
-      <section v-else class="space-y-4">
+      <section v-show="viewMode === 'LIST'" class="space-y-4">
         <div>
           <h3 class="mb-2 text-sm font-semibold">Starting XI</h3>
           <div class="overflow-x-auto">
@@ -195,7 +195,11 @@ import { computed, h, ref, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type { Availability, TickerFixture } from '../../types/fpl-common'
 import type { Squad, SquadPlayer } from '../../types/fpl-dashboard'
-import { getClubLogoUrl } from '../../utils/fpl-logos'
+import {
+  getClubGoalkeeperJerseyUrl,
+  getClubLogoUrl,
+  getClubJerseyUrl,
+} from '../../utils/fpl-logos'
 
 const UBadge = resolveComponent('UBadge')
 
@@ -519,6 +523,19 @@ const benchColumns: TableColumn<SquadPlayer>[] = [
 ]
 
 const clubLogo = (p: SquadPlayer) => getClubLogoUrl(p.club.shortName)
+const clubJersey = (p: SquadPlayer) => {
+  const short = p.club.shortName
+
+  if (p.position === 'GK') {
+    return (
+      getClubGoalkeeperJerseyUrl(short) ??
+      getClubJerseyUrl(short) ??
+      getClubLogoUrl(short)
+    )
+  }
+
+  return getClubJerseyUrl(short) ?? getClubLogoUrl(short)
+}
 
 const availabilityDotClass = (availability: Availability) => {
   switch (availability) {
