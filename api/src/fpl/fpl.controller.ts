@@ -20,6 +20,15 @@ export class FplController {
     return this.fplService.syncBootstrapData();
   }
 
+  @Get('fixture-ticker')
+  async getFixtureTicker(@Query('events') events?: string) {
+    const parsed = events ? Number(events) : undefined;
+    const numEvents =
+      parsed && !Number.isNaN(parsed) ? Math.max(1, Math.min(parsed, 10)) : 5;
+
+    return this.fplService.getFixtureTicker(numEvents);
+  }
+
   @Get('players')
   async listPlayers(
     @Query('clubId') clubId?: string,
