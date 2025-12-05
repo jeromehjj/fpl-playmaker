@@ -23,12 +23,9 @@
 import { h, computed, onMounted, ref, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import { useApi } from '../../composables/useApi'
-import type {
-  FixtureTicker,
-  TickerFixture,
-  TickerRow,
-} from '../../types/fpl-common'
+import type { FixtureTicker, TickerRow } from '../../types/fpl-common'
 import { difficultyBadgeColor } from '../../utils/fpl-ui'
+import { getClubLogoUrl } from '../../utils/fpl-logos'
 
 const { get } = useApi()
 
@@ -66,7 +63,27 @@ const columns = computed<TableColumn<TickerRow>[]>(() => {
     },
     cell: ({ row }) => {
       const r = row.original as TickerRow
-      return h('span', { class: 'font-medium' }, r.clubShortName)
+      const logo = getClubLogoUrl(r.clubShortName)
+
+      const logoNode = logo
+        ? h('img', {
+            src: logo,
+            alt: r.clubShortName,
+            class: 'h-6 w-6 object-contain',
+          })
+        : h(
+            'div',
+            {
+              class:
+                'flex h-6 w-6 items-center justify-center rounded bg-gray-100 text-[10px] font-semibold text-gray-700',
+            },
+            r.clubShortName,
+          )
+
+      return h('div', { class: 'flex items-center gap-2' }, [
+        logoNode,
+        h('span', { class: 'font-medium' }, r.clubShortName),
+      ])
     },
   }
 
@@ -141,4 +158,3 @@ onMounted(() => {
   fetchTicker()
 })
 </script>
-

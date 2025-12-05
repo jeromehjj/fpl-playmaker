@@ -136,7 +136,7 @@ const fetchFixtureTicker = async () => {
 
   try {
     fixtureTicker.value = await get<FixtureTicker>('/fpl/fixture-ticker', {
-      events: 5, // enough for your “next 3/5” context
+      events: 6, // enough for your “next 3/5” context
     });
   } catch (e: any) {
     console.error('fetchFixtureTicker error:', e);
@@ -148,7 +148,7 @@ const fetchFixtureTicker = async () => {
   }
 };
 
-const nextFixturesForClub = (clubExternalId: number, limit = 3): TickerFixture[] => {
+const nextFixturesForClub = (clubExternalId: number, limit = 5): TickerFixture[] => {
   const tickerValue = fixtureTicker.value;
   if (!tickerValue) return [];
   const row = tickerValue.rows.find(r => r.clubExternalId === clubExternalId);

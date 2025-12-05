@@ -21,42 +21,183 @@
       Squad not available.
     </div>
     <div v-else class="space-y-4">
-      <div>
-        <h3 class="text-sm font-semibold mb-2">Starting XI</h3>
-        <div class="overflow-x-auto">
-          <UTable
-            :data="sortedStarting"
-            :columns="startingColumns"
-            class="min-w-full text-xs"
-          />
-        </div>
-      </div>
+      <UTabs
+        v-model="viewMode"
+        :items="tabItems"
+        class="w-full"
+        size="sm"
+      />
 
-      <div>
-        <h3 class="text-sm font-semibold mb-2">Bench</h3>
-        <div class="overflow-x-auto">
-          <UTable
-            :data="sortedBench"
-            :columns="benchColumns"
-            class="min-w-full text-xs"
+      <!-- Pitch view -->
+      <section v-if="viewMode === 'PITCH'">
+        <h3 class="mb-2 text-sm font-semibold">Starting XI</h3>
+
+        <div
+          class="relative overflow-hidden rounded-xl border border-emerald-700 bg-gradient-to-b from-emerald-900 via-emerald-800 to-emerald-950 px-3 py-4 text-xs text-emerald-50"
+        >
+          <!-- Pitch lines -->
+          <div
+            class="pointer-events-none absolute inset-1 rounded-xl border border-emerald-300/40"
           />
+          <div
+            class="pointer-events-none absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-emerald-300/30"
+          />
+          <div
+            class="pointer-events-none absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-300/30"
+          />
+          <div
+            class="pointer-events-none absolute left-1/2 top-2 h-16 w-36 -translate-x-1/2 rounded-b-xl border border-emerald-300/30"
+          />
+          <div
+            class="pointer-events-none absolute bottom-2 left-1/2 h-16 w-36 -translate-x-1/2 rounded-t-xl border border-emerald-300/30"
+          />
+
+          <div class="relative space-y-4">
+            <div
+              v-for="line in startingLines"
+              :key="line.key"
+              class="flex justify-center"
+            >
+              <div class="flex flex-wrap justify-center gap-3">
+                <div
+                  v-for="p in line.players"
+                  :key="p.id"
+                  class="flex flex-col items-center"
+                >
+                  <div
+                    class="relative flex min-w-[80px] flex-col items-center rounded-md bg-emerald-700/80 px-2 py-1"
+                  >
+                    <!-- Captain / Vice-Captain badge -->
+                    <div
+                      v-if="p.pick.isCaptain"
+                      class="absolute -top-2 -left-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-[10px] font-bold text-black"
+                    >
+                      C
+                    </div>
+                    <div
+                      v-else-if="p.pick.isViceCaptain"
+                      class="absolute -top-2 -left-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-sky-400 text-[10px] font-bold text-black"
+                    >
+                      VC
+                    </div>
+
+                    <!-- Availability dot -->
+                    <span
+                      class="absolute -top-1 -right-1 inline-flex h-3 w-3 rounded-full border border-emerald-900"
+                      :class="availabilityDotClass(p.availability)"
+                    />
+
+                    <!-- Club crest or short name -->
+                    <img
+                      v-if="clubLogo(p)"
+                      :src="clubLogo(p)"
+                      :alt="p.club.shortName"
+                      class="mb-1 h-6 w-6 object-contain"
+                    />
+                    <div
+                      v-else
+                      class="mb-1 text-[10px] font-semibold uppercase"
+                    >
+                      {{ p.club.shortName }}
+                    </div>
+
+                    <span class="text-[11px] font-semibold">
+                      {{ p.webName }}
+                    </span>
+                    <span class="text-[10px] text-emerald-100/90">
+                      {{ p.club.shortName }}
+                    </span>
+
+                    <span class="mt-1 text-[10px] font-semibold">
+                      {{ gwPointsDisplay(p) }} pts
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+
+        <!-- Bench under pitch -->
+        <h3 class="mt-4 mb-2 text-sm font-semibold">Bench</h3>
+        <div class="flex flex-wrap justify-center gap-3">
+          <div
+            v-for="p in sortedBench"
+            :key="p.id"
+            class="flex flex-col items-center text-xs"
+          >
+            <div
+              class="relative flex min-w-[80px] flex-col items-center rounded-md bg-slate-800 px-2 py-1 text-slate-50"
+            >
+              <span
+                class="absolute -top-1 -right-1 inline-flex h-3 w-3 rounded-full border border-slate-900"
+                :class="availabilityDotClass(p.availability)"
+              />
+
+              <img
+                v-if="clubLogo(p)"
+                :src="clubLogo(p)"
+                :alt="p.club.shortName"
+                class="mb-1 h-6 w-6 object-contain"
+              />
+              <div
+                v-else
+                class="mb-1 text-[10px] font-semibold uppercase"
+              >
+                {{ p.club.shortName }}
+              </div>
+
+              <span class="text-[11px] font-semibold">
+                {{ p.webName }}
+              </span>
+              <span class="text-[10px] text-slate-200/90">
+                {{ p.club.shortName }}
+              </span>
+
+              <span class="mt-1 text-[10px] font-semibold">
+                {{ gwPointsDisplay(p) }} pts
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- List view (original tables) -->
+      <section v-else class="space-y-4">
+        <div>
+          <h3 class="mb-2 text-sm font-semibold">Starting XI</h3>
+          <div class="overflow-x-auto">
+            <UTable
+              :data="sortedStarting"
+              :columns="startingColumns"
+              class="min-w-full text-xs"
+            />
+          </div>
+        </div>
+
+        <div>
+          <h3 class="mb-2 text-sm font-semibold">Bench</h3>
+          <div class="overflow-x-auto">
+            <UTable
+              :data="sortedBench"
+              :columns="benchColumns"
+              class="min-w-full text-xs"
+            />
+          </div>
+        </div>
+      </section>
     </div>
   </UCard>
 </template>
 
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui';
-import { computed, h, resolveComponent } from 'vue';
-import type { TickerFixture } from '../../types/fpl-common';
-import type {
-  Squad,
-  SquadPlayer,
-} from '../../types/fpl-dashboard';
+import { computed, h, ref, resolveComponent } from 'vue'
+import type { TableColumn } from '@nuxt/ui'
+import type { Availability, TickerFixture } from '../../types/fpl-common'
+import type { Squad, SquadPlayer } from '../../types/fpl-dashboard'
+import { getClubLogoUrl } from '../../utils/fpl-logos'
 
-
-const UBadge = resolveComponent('UBadge');
+const UBadge = resolveComponent('UBadge')
 
 const {
   squad,
@@ -65,13 +206,13 @@ const {
   nextFixturesForClub,
   difficultyBadgeColor,
 } = defineProps<{
-  squad: Squad | null;
-  loading: boolean;
-  error: string | null;
+  squad: Squad | null
+  loading: boolean
+  error: string | null
   nextFixturesForClub: (
     clubExternalId: number,
     limit: number,
-  ) => TickerFixture[];
+  ) => TickerFixture[]
   difficultyBadgeColor: (
     d: number,
   ) =>
@@ -82,22 +223,49 @@ const {
     | 'info'
     | 'warning'
     | 'neutral'
-    | undefined;
-}>();
+    | undefined
+}>()
+
+const viewMode = ref<'PITCH' | 'LIST'>('LIST')
+
+const tabItems = [
+  { label: 'List', value: 'LIST' as const },
+  { label: 'Pitch', value: 'PITCH' as const },
+]
 
 const sortedStarting = computed(() =>
   squad
     ? [...squad.starting].sort((a, b) => a.pick.position - b.pick.position)
     : [],
-);
+)
 
 const sortedBench = computed(() =>
-  squad
-    ? [...squad.bench].sort((a, b) => a.pick.position - b.pick.position)
-    : [],
-);
+  squad ? [...squad.bench].sort((a, b) => a.pick.position - b.pick.position) : [],
+)
 
-const startingColumns: TableColumn<SquadPlayer>[] = [
+// Pitch grouping
+const startingLines = computed(() => {
+  const lines: Record<'GK' | 'DEF' | 'MID' | 'FWD', SquadPlayer[]> = {
+    GK: [],
+    DEF: [],
+    MID: [],
+    FWD: [],
+  }
+
+  for (const p of sortedStarting.value) {
+    lines[p.position].push(p)
+  }
+
+  return [
+    { key: 'GK', players: lines.GK },
+    { key: 'DEF', players: lines.DEF },
+    { key: 'MID', players: lines.MID },
+    { key: 'FWD', players: lines.FWD },
+  ]
+})
+
+// List view columns
+  const startingColumns: TableColumn<SquadPlayer>[] = [
   {
     accessorKey: 'position',
     header: 'Pos',
@@ -106,16 +274,16 @@ const startingColumns: TableColumn<SquadPlayer>[] = [
     id: 'player',
     header: 'Player',
     cell: ({ row }) => {
-      const p = row.original as SquadPlayer;
+      const p = row.original as SquadPlayer
 
-      let roleLabel: string | null = null;
-      let roleClass = '';
+      let roleLabel: string | null = null
+      let roleClass = ''
       if (p.pick.isCaptain) {
-        roleLabel = 'C';
-        roleClass = 'text-amber-400';
+        roleLabel = 'C'
+        roleClass = 'text-amber-400'
       } else if (p.pick.isViceCaptain) {
-        roleLabel = 'VC';
-        roleClass = 'text-sky-400';
+        roleLabel = 'VC'
+        roleClass = 'text-sky-400'
       }
 
       const roleBadge =
@@ -123,73 +291,88 @@ const startingColumns: TableColumn<SquadPlayer>[] = [
           ? h(
               'span',
               {
-                class: `text-xs font-semibold mr-1 ${roleClass}`,
+                class: `mr-1 text-xs font-semibold ${roleClass}`,
               },
               roleLabel,
             )
-          : null;
+          : null
 
-      return h('span', [
-        roleBadge,
-        p.webName,
-        p.fullName
-          ? h(
-              'span',
-              { class: 'ml-1 text-[10px] text-gray-500' },
-              `(${p.fullName})`,
-            )
-          : null,
-      ]);
+      const logo = clubLogo(p)
+
+      const logoNode = logo
+        ? h('img', {
+            src: logo,
+            alt: p.club.shortName,
+            class: 'h-6 w-6 object-contain',
+          })
+        : h(
+            'div',
+            {
+              class:
+                'flex h-6 w-6 items-center justify-center rounded bg-gray-100 text-[10px] font-semibold text-gray-700',
+            },
+            p.club.shortName,
+          )
+
+      return h('div', { class: 'flex items-center gap-3' }, [
+        logoNode,
+          h('div', { class: 'flex flex-col leading-tight' }, [
+            h('span', { class: 'text-xs font-semibold text-white' }, [
+            roleBadge,
+            p.webName,
+          ]),
+          h(
+            'span',
+            { class: 'text-[11px] text-gray-500' },
+            p.club.name,
+          ),
+        ]),
+      ])
     },
   },
   {
     id: 'status',
     header: 'Status',
     cell: ({ row }) => {
-      const p = row.original as SquadPlayer;
-      const status = p.availability;
+      const p = row.original as SquadPlayer
+      const status = p.availability
       const label =
         status === 'AVAILABLE'
           ? 'Available'
           : status === 'RISKY'
           ? 'Risky'
-          : 'Unavailable';
+          : 'Unavailable'
       const color =
         status === 'AVAILABLE'
           ? 'text-green-500'
           : status === 'RISKY'
           ? 'text-amber-500'
-          : 'text-red-500';
-      return h('span', { class: `text-xs font-medium ${color}` }, label);
+          : 'text-red-500'
+      return h('span', { class: `text-xs font-medium ${color}` }, label)
     },
-  },
-  {
-    id: 'club',
-    header: 'Club',
-    accessorFn: (row) => row.club.shortName,
   },
   {
     id: 'price',
     header: 'Price',
     cell: ({ row }) => {
-      const p = row.original as SquadPlayer;
-      return `£${(p.nowCost / 10).toFixed(1)}m`;
+      const p = row.original as SquadPlayer
+      return `£${(p.nowCost / 10).toFixed(1)}m`
     },
   },
   {
     id: 'fixtures',
     header: 'Next 3 fixtures',
     cell: ({ row }) => {
-      const p = row.original as SquadPlayer;
-      const fixtures = nextFixturesForClub(p.club.externalId, 3);
+      const p = row.original as SquadPlayer
+      const fixtures = nextFixturesForClub(p.club.externalId, 3)
       if (!fixtures.length) {
-        return h('span', { class: 'text-gray-400' }, '-');
+        return h('span', { class: 'text-gray-400' }, '-')
       }
 
       return h(
         'div',
         { class: 'flex flex-wrap gap-1' },
-        fixtures.map((fx) =>
+        fixtures.map(fx =>
           h(
             UBadge,
             {
@@ -204,23 +387,22 @@ const startingColumns: TableColumn<SquadPlayer>[] = [
               })`,
           ),
         ),
-      );
+      )
     },
   },
   {
     id: 'gwPoints',
     header: 'GW pts',
     cell: ({ row }) => {
-      const p = row.original as SquadPlayer;
+      const p = row.original as SquadPlayer
       if (p.gwPoints === null) {
-        return '-';
+        return '-'
       }
 
-      return `${p.pick.multiplier * p.gwPoints}`;
+      return `${p.pick.multiplier * p.gwPoints}`
     },
   },
-];
-
+]
 
 const benchColumns: TableColumn<SquadPlayer>[] = [
   {
@@ -231,67 +413,80 @@ const benchColumns: TableColumn<SquadPlayer>[] = [
     id: 'player',
     header: 'Player',
     cell: ({ row }) => {
-      const p = row.original as SquadPlayer;
-      return h('span', [
-        p.webName,
-        p.fullName
-          ? h(
-              'span',
-              { class: 'ml-1 text-[10px] text-gray-500' },
-              `(${p.fullName})`,
-            )
-          : null,
-      ]);
+      const p = row.original as SquadPlayer
+      const logo = clubLogo(p)
+
+      const logoNode = logo
+        ? h('img', {
+            src: logo,
+            alt: p.club.shortName,
+            class: 'h-6 w-6 object-contain',
+          })
+        : h(
+            'div',
+            {
+              class:
+                'flex h-6 w-6 items-center justify-center rounded bg-gray-100 text-[10px] font-semibold text-gray-700',
+            },
+            p.club.shortName,
+          )
+
+      return h('div', { class: 'flex items-center gap-3' }, [
+        logoNode,
+        h('div', { class: 'flex flex-col leading-tight' }, [
+          h('span', { class: 'text-xs font-semibold text-white' }, p.webName),
+          h(
+            'span',
+            { class: 'text-[11px] text-gray-500' },
+            p.club.name,
+          ),
+        ]),
+      ])
     },
   },
   {
     id: 'status',
     header: 'Status',
     cell: ({ row }) => {
-      const p = row.original as SquadPlayer;
-      const status = p.availability;
+      const p = row.original as SquadPlayer
+      const status = p.availability
       const label =
         status === 'AVAILABLE'
           ? 'Available'
           : status === 'RISKY'
           ? 'Risky'
-          : 'Unavailable';
+          : 'Unavailable'
       const color =
         status === 'AVAILABLE'
           ? 'text-green-500'
           : status === 'RISKY'
           ? 'text-amber-500'
-          : 'text-red-500';
-      return h('span', { class: `text-xs font-medium ${color}` }, label);
+          : 'text-red-500'
+      return h('span', { class: `text-xs font-medium ${color}` }, label)
     },
-  },
-  {
-    id: 'club',
-    header: 'Club',
-    accessorFn: (row) => row.club.shortName,
   },
   {
     id: 'price',
     header: 'Price',
     cell: ({ row }) => {
-      const p = row.original as SquadPlayer;
-      return `£${(p.nowCost / 10).toFixed(1)}m`;
+      const p = row.original as SquadPlayer
+      return `£${(p.nowCost / 10).toFixed(1)}m`
     },
   },
   {
     id: 'fixtures',
     header: 'Next 3 fixtures',
     cell: ({ row }) => {
-      const p = row.original as SquadPlayer;
-      const fixtures = nextFixturesForClub(p.club.externalId, 3);
+      const p = row.original as SquadPlayer
+      const fixtures = nextFixturesForClub(p.club.externalId, 3)
       if (!fixtures.length) {
-        return h('span', { class: 'text-gray-400' }, '-');
+        return h('span', { class: 'text-gray-400' }, '-')
       }
 
       return h(
         'div',
         { class: 'flex flex-wrap gap-1' },
-        fixtures.map((fx) =>
+        fixtures.map(fx =>
           h(
             UBadge,
             {
@@ -306,20 +501,40 @@ const benchColumns: TableColumn<SquadPlayer>[] = [
               })`,
           ),
         ),
-      );
+      )
     },
   },
   {
     id: 'gwPoints',
     header: 'GW pts',
     cell: ({ row }) => {
-      const p = row.original as SquadPlayer;
+      const p = row.original as SquadPlayer
       if (p.gwPoints === null) {
-        return '-';
+        return '-'
       }
 
-      return `${p.gwPoints}`;
+      return `${p.gwPoints}`
     },
   },
-];
+]
+
+const clubLogo = (p: SquadPlayer) => getClubLogoUrl(p.club.shortName)
+
+const availabilityDotClass = (availability: Availability) => {
+  switch (availability) {
+    case 'AVAILABLE':
+      return 'bg-emerald-400'
+    case 'RISKY':
+      return 'bg-amber-400'
+    case 'UNAVAILABLE':
+      return 'bg-red-500'
+    default:
+      return 'bg-emerald-400'
+  }
+}
+
+const gwPointsDisplay = (p: SquadPlayer) => {
+  if (p.gwPoints === null) return '-'
+  return p.pick.multiplier * p.gwPoints
+}
 </script>

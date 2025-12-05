@@ -26,7 +26,7 @@ const CLUB_LOGOS: Record<string, string> = {
   WOL: '/clubs/wol.svg',
 };
 
-export const getClubLogoUrl = (shortName: string): string | null => {
-  return CLUB_LOGOS[shortName.toUpperCase()] ?? null;
+export const getClubLogoUrl = (shortName: string): string | undefined => {
+  return CLUB_LOGOS[shortName.toUpperCase()] ?? undefined;
 };
 
