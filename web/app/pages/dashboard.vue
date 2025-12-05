@@ -94,8 +94,7 @@
 </template>
 
 <script setup lang="ts">
-import { h, onMounted, ref, resolveComponent } from 'vue';
-import type { TableColumn } from '@nuxt/ui';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useApi } from '../composables/useApi';
 import type {
@@ -107,12 +106,10 @@ import type {
   TickerFixture,
   FixtureTicker,
 } from '../types/fpl-common';
+import { difficultyBadgeColor } from '../utils/fpl-ui';
 
 const router = useRouter();
 const { get, post } = useApi();
-
-const UBadge = resolveComponent('UBadge');
-
 
 const fixtureTicker = ref<FixtureTicker | null>(null);
 const fixtureTickerLoading = ref(false);
@@ -139,7 +136,7 @@ const fetchFixtureTicker = async () => {
 
   try {
     fixtureTicker.value = await get<FixtureTicker>('/fpl/fixture-ticker', {
-      events: 5, // enough for your “next 3/5” context
+      events: 6, // enough for your “next 3/5” context
     });
   } catch (e: any) {
     console.error('fetchFixtureTicker error:', e);
@@ -151,30 +148,12 @@ const fetchFixtureTicker = async () => {
   }
 };
 
-const nextFixturesForClub = (clubExternalId: number, limit = 3): TickerFixture[] => {
+const nextFixturesForClub = (clubExternalId: number, limit = 5): TickerFixture[] => {
   const tickerValue = fixtureTicker.value;
   if (!tickerValue) return [];
   const row = tickerValue.rows.find(r => r.clubExternalId === clubExternalId);
   if (!row) return [];
   return row.fixtures.slice(0, limit);
-};
-
-
-const difficultyBadgeColor = (d: number): "error" | "primary" | "secondary" | "success" | "info" | "warning" | "neutral" | undefined => {
-  switch (d) {
-    case 1:
-      return 'success';
-    case 2:
-      return 'primary';
-    case 3:
-      return 'neutral';
-    case 4:
-      return 'warning';
-    case 5:
-      return 'error';
-    default:
-      return 'neutral';
-  }
 };
 
 
