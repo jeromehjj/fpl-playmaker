@@ -109,6 +109,7 @@ import type {
   PositionFilter,
   AvailabilityFilter,
 } from '../../types/fpl-players'
+import { getClubLogoUrl } from '../../utils/fpl-logos'
 
 const positionOptions = POSITION_OPTIONS
 const statusOptions = AVAILABILITY_OPTIONS
@@ -233,20 +234,42 @@ const sortableHeader = (label: string, key: PlayerSortKey) => {
   }
 }
 
-const columns: TableColumn<PlayerListItem>[] = [
-  {
-    accessorKey: 'webName',
-    header: 'Name',
-    cell: ({ row }) => {
-      const player = row.original
-      return h('div', { class: 'flex flex-col' }, [
-        h('span', { class: 'font-semibold text-gray-900' }, player.webName),
-        player.fullName
-          ? h('span', { class: 'text-xs text-gray-500' }, player.fullName)
-          : null,
-      ])
+  const columns: TableColumn<PlayerListItem>[] = [
+    {
+      accessorKey: 'webName',
+      header: 'Name',
+      cell: ({ row }) => {
+        const player = row.original
+        const logo = getClubLogoUrl(player.club.shortName)
+
+        const logoNode = logo
+          ? h('img', {
+              src: logo,
+              alt: player.club.shortName,
+              class: 'h-8 w-8 object-contain',
+            })
+          : h(
+              'div',
+              {
+                class:
+                  'flex h-8 w-8 items-center justify-center rounded bg-gray-100 text-[10px] font-semibold text-gray-700',
+              },
+              player.club.shortName,
+            )
+
+        return h('div', { class: 'flex items-center gap-3' }, [
+          logoNode,
+          h('div', { class: 'flex flex-col leading-tight' }, [
+            h('span', { class: 'font-semibold text-white' }, player.webName),
+            h(
+              'span',
+              { class: 'text-xs text-gray-500' },
+              player.club.name,
+            ),
+          ]),
+        ])
+      },
     },
-  },
   {
     accessorKey: 'position',
     header: 'Position',
@@ -270,11 +293,6 @@ const columns: TableColumn<PlayerListItem>[] = [
           : 'text-red-500'
       return h('span', { class: `text-xs font-medium ${color}` }, label)
     },
-  },
-  {
-    id: 'club',
-    header: 'Club',
-    accessorFn: row => row.club.shortName,
   },
   {
     id: 'PRICE',
