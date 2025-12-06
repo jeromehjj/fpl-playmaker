@@ -42,6 +42,12 @@ const sorting = ref<{ id: string; desc: boolean }[]>([])
 const columns = computed<TableColumn<TickerRow>[]>(() => {
   if (!ticker.value) return []
 
+  const runTotal = (row: TickerRow): number =>
+    ticker.value!.events.reduce((sum, gw) => {
+      const fx = row.fixtures.find(f => f.event === gw)
+      return sum + (fx ? fx.difficulty : 0)
+    }, 0)
+
   const teamColumn: TableColumn<TickerRow> = {
     accessorKey: 'clubShortName',
     enableSorting: true,
@@ -136,7 +142,33 @@ const columns = computed<TableColumn<TickerRow>[]>(() => {
     }),
   )
 
-  return [teamColumn, ...gwColumns]
+    const runColumn: TableColumn<TickerRow> = {
+    id: 'runScore',
+    accessorFn: row => runTotal(row as TickerRow),
+    enableSorting: true,
+    header: ({ column }) => {
+      const isSorted = column.getIsSorted()
+
+      return h(UButton, {
+        color: 'neutral',
+        variant: 'ghost',
+        label: 'Run',
+        icon: isSorted
+          ? isSorted === 'asc'
+            ? 'i-lucide-arrow-up-narrow-wide'
+            : 'i-lucide-arrow-down-wide-narrow'
+          : 'i-lucide-arrow-up-down',
+        class: ['-mx-2.5', isSorted ? 'text-emerald-500' : ''],
+        onClick: () => column.toggleSorting(column.getIsSorted() === 'asc'),
+      })
+    },
+    cell: ({ row }) => {
+      const r = row.original as TickerRow
+      return `${runTotal(r)}`
+    },
+  }
+
+  return [teamColumn, ...gwColumns, runColumn]
 })
 
 const fetchTicker = async () => {

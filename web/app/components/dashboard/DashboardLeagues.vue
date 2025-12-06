@@ -70,16 +70,22 @@ const columns: TableColumn<League>[] = [
   {
     accessorKey: 'name',
     header: 'Name',
+    meta: {
+      class: {
+        td: 'w-2/5 whitespace-nowrap',
+      },
+    },
   },
   {
     id: 'scoring',
     header: 'Scoring',
     cell: ({ row }) =>
       row.original.scoring === 'classic' ? 'Classic' : 'Head to head',
-  },
-  {
-    accessorKey: 'leagueType',
-    header: 'Type',
+    meta: {
+      class: {
+        td: 'w-1/5 whitespace-nowrap',
+      },
+    },
   },
   {
     id: 'rank',
@@ -87,6 +93,11 @@ const columns: TableColumn<League>[] = [
     cell: ({ row }) => {
       const rank = row.original.entryRank
       return rank !== null ? `#${rank.toLocaleString()}` : '-'
+    },
+    meta: {
+      class: {
+        td: 'w-1/5 whitespace-nowrap',
+      },
     },
   },
   {
@@ -96,8 +107,14 @@ const columns: TableColumn<League>[] = [
       const count = row.original.rankCount
       return count !== null ? count.toLocaleString() : '-'
     },
+    meta: {
+      class: {
+        td: 'w-1/5 whitespace-nowrap',
+      },
+    },
   },
 ]
+
 
 const typeKey = (lg: League) =>
   lg.leagueType?.toLowerCase().trim() ?? ''
