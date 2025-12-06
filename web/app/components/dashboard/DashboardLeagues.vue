@@ -9,65 +9,132 @@
       </div>
     </template>
 
-    <div class="overflow-x-auto">
-      <table class="min-w-full text-xs">
-        <thead>
-          <tr class="text-left border-b border-gray-200">
-            <th class="py-1.5 pr-4 font-medium text-gray-400">
-              Name
-            </th>
-            <th class="py-1.5 pr-4 font-medium text-gray-400">
-              Scoring
-            </th>
-            <th class="py-1.5 pr-4 font-medium text-gray-400">
-              Type
-            </th>
-            <th class="py-1.5 pr-4 font-medium text-gray-400">
-              Rank
-            </th>
-            <th class="py-1.5 pr-4 font-medium text-gray-400">
-              Teams
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="lg in leagues"
-            :key="`${lg.category}-${lg.id}`"
-            class="border-b border-gray-100 last:border-b-0"
-          >
-            <td class="py-1.5 pr-4">
-              {{ lg.name }}
-            </td>
-            <td class="py-1.5 pr-4">
-              {{ lg.scoring === 'classic' ? 'Classic' : 'Head to head' }}
-            </td>
-            <td class="py-1.5 pr-4">
-              {{ lg.leagueType }}
-            </td>
-            <td class="py-1.5 pr-4">
-              <span v-if="lg.entryRank !== null">
-                #{{ lg.entryRank.toLocaleString() }}
-              </span>
-              <span v-else>-</span>
-            </td>
-            <td class="py-1.5 pr-4">
-              <span v-if="lg.rankCount !== null">
-                {{ lg.rankCount.toLocaleString() }}
-              </span>
-              <span v-else>-</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="space-y-4 overflow-x-auto">
+      <section v-if="standardLeagues.length">
+        <h3 class="mb-1 text-md font-semibold uppercase text-white">
+          Standard
+        </h3>
+        <UTable
+          :data="standardLeagues"
+          :columns="columns"
+          class="min-w-full text-xs"
+        />
+      </section>
+
+      <section v-if="invitationalLeagues.length">
+        <h3 class="mb-1 text-md font-semibold uppercase text-white">
+          Invitational
+        </h3>
+        <UTable
+          :data="invitationalLeagues"
+          :columns="columns"
+          class="min-w-full text-xs"
+        />
+      </section>
+
+      <section v-if="cupLeagues.length">
+        <h3 class="mb-1 text-md font-semibold uppercase text-white">
+          Cup
+        </h3>
+        <UTable
+          :data="cupLeagues"
+          :columns="columns"
+          class="min-w-full text-xs"
+        />
+      </section>
+
+      <section v-if="otherLeagues.length">
+        <h3 class="mb-1 text-md font-semibold uppercase text-white">
+          Other
+        </h3>
+        <UTable
+          :data="otherLeagues"
+          :columns="columns"
+          class="min-w-full text-xs"
+        />
+      </section>
     </div>
   </UCard>
 </template>
 
 <script setup lang="ts">
-import type { League } from '../../types/fpl-dashboard';
+import { computed } from 'vue'
+import type { TableColumn } from '@nuxt/ui'
+import type { League } from '../../types/fpl-dashboard'
 
-defineProps<{
-  leagues: League[];
-}>();
+const { leagues } = defineProps<{
+  leagues: League[]
+}>()
+
+const columns: TableColumn<League>[] = [
+  {
+    accessorKey: 'name',
+    header: 'Name',
+    meta: {
+      class: {
+        td: 'w-2/5 whitespace-nowrap',
+      },
+    },
+  },
+  {
+    id: 'scoring',
+    header: 'Scoring',
+    cell: ({ row }) =>
+      row.original.scoring === 'classic' ? 'Classic' : 'Head to head',
+    meta: {
+      class: {
+        td: 'w-1/5 whitespace-nowrap',
+      },
+    },
+  },
+  {
+    id: 'rank',
+    header: 'Rank',
+    cell: ({ row }) => {
+      const rank = row.original.entryRank
+      return rank !== null ? `#${rank.toLocaleString()}` : '-'
+    },
+    meta: {
+      class: {
+        td: 'w-1/5 whitespace-nowrap',
+      },
+    },
+  },
+  {
+    id: 'teams',
+    header: 'Teams',
+    cell: ({ row }) => {
+      const count = row.original.rankCount
+      return count !== null ? count.toLocaleString() : '-'
+    },
+    meta: {
+      class: {
+        td: 'w-1/5 whitespace-nowrap',
+      },
+    },
+  },
+]
+
+
+const typeKey = (lg: League) =>
+  lg.leagueType?.toLowerCase().trim() ?? ''
+
+const standardLeagues = computed(() =>
+  leagues.filter(lg => typeKey(lg) === 'standard'),
+)
+
+const invitationalLeagues = computed(() =>
+  leagues.filter(lg => typeKey(lg) === 'invitation'),
+)
+
+const cupLeagues = computed(() =>
+  leagues.filter(lg => typeKey(lg) === 'cup'),
+)
+
+const otherLeagues = computed(() =>
+  leagues.filter(lg => {
+    const t = typeKey(lg)
+    return t && !['standard', 'invitation', 'cup'].includes(t)
+  }),
+)
 </script>

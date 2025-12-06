@@ -34,9 +34,15 @@ import { h, resolveComponent } from 'vue';
 import type { TableColumn } from '@nuxt/ui';
 import type {
   Squad,
+  SquadPlayer,
   TransferSuggestion,
 } from '../../types/fpl-dashboard';
 import type { TickerFixture } from '../../types/fpl-common';
+import {
+  getClubGoalkeeperJerseyUrl,
+  getClubJerseyUrl,
+  getClubLogoUrl,
+} from '../../utils/fpl-logos'
 
 const UBadge = resolveComponent('UBadge');
 
@@ -69,39 +75,96 @@ const {
     | undefined;
 }>();
 
+const clubJersey = (p: SquadPlayer) => {
+  const short = p.club.shortName
+
+  if (p.position === 'GK') {
+    return (
+      getClubGoalkeeperJerseyUrl(short) ??
+      getClubJerseyUrl(short) ??
+      getClubLogoUrl(short)
+    )
+  }
+
+  return getClubJerseyUrl(short) ?? getClubLogoUrl(short)
+}
+
 const suggestionColumns: TableColumn<TransferSuggestion>[] = [
   {
     id: 'from',
     header: 'From',
     cell: ({ row }) => {
-      const s = row.original as TransferSuggestion;
-      return h('span', [
-        s.from.webName,
-        ' ',
-        h(
-          'span',
-          { class: 'text-[10px] text-gray-500' },
-          `(${s.from.position})`,
-        ),
-      ]);
+      const s = row.original as TransferSuggestion
+      const p = s.from
+      const jersey = clubJersey(p)
+
+      const logoNode = jersey
+        ? h('img', {
+            src: jersey,
+            alt: p.club.shortName,
+            class: 'h-6 w-6 object-contain',
+          })
+        : h(
+            'div',
+            {
+              class:
+                'flex h-6 w-6 items-center justify-center rounded bg-gray-100 text-[10px] font-semibold text-gray-700',
+            },
+            p.club.shortName,
+          )
+
+      return h('div', { class: 'flex items-center gap-2' }, [
+        logoNode,
+        h('span', [
+          p.webName,
+          ' ',
+          h(
+            'span',
+            { class: 'text-[10px] text-gray-500' },
+            `(${p.position})`,
+          ),
+        ]),
+      ])
     },
   },
   {
     id: 'to',
     header: 'To',
     cell: ({ row }) => {
-      const s = row.original as TransferSuggestion;
-      return h('span', [
-        s.to.webName,
-        ' ',
-        h(
-          'span',
-          { class: 'text-[10px] text-gray-500' },
-          `(${s.to.position})`,
-        ),
-      ]);
+      const s = row.original as TransferSuggestion
+      const p = s.to
+      const jersey = clubJersey(p)
+
+      const logoNode = jersey
+        ? h('img', {
+            src: jersey,
+            alt: p.club.shortName,
+            class: 'h-6 w-6 object-contain',
+          })
+        : h(
+            'div',
+            {
+              class:
+                'flex h-6 w-6 items-center justify-center rounded bg-gray-100 text-[10px] font-semibold text-gray-700',
+            },
+            p.club.shortName,
+          )
+
+      return h('div', { class: 'flex items-center gap-2' }, [
+        logoNode,
+        h('span', { class: 'text-white'}, [
+          p.webName,
+          ' ',
+          h(
+            'span',
+            { class: 'text-[10px] text-white' },
+            `(${p.position})`,
+          ),
+        ]),
+      ])
     },
   },
+
   {
     id: 'pp90',
     header: '↑ Pts/90',

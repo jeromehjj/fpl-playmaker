@@ -32,33 +32,34 @@
       <section v-show="viewMode === 'PITCH'">
         <h3 class="mb-2 text-sm font-semibold">Starting XI</h3>
 
-        <div
-          class="relative overflow-hidden rounded-xl border border-emerald-700 bg-gradient-to-b from-emerald-900 via-emerald-800 to-emerald-950 px-3 py-4 text-xs text-emerald-50"
+       <div
+          class="relative mx-auto w-full max-w-md md:max-w-lg rounded-2xl border border-emerald-600 bg-gradient-to-b from-emerald-700 via-emerald-600 to-emerald-900 px-3 py-4 text-xs text-emerald-50 shadow-inner"
         >
+
           <!-- Pitch lines -->
           <div
-            class="pointer-events-none absolute inset-1 rounded-xl border border-emerald-300/40"
+            class="pointer-events-none absolute inset-1 rounded-xl border border-white"
           />
           <div
-            class="pointer-events-none absolute inset-y-2 left-1/2 w-px -translate-x-1/2 bg-emerald-300/30"
+            class="pointer-events-none absolute inset-x-2 top-1/2 h-px -translate-y-1/2 bg-white"
           />
           <div
-            class="pointer-events-none absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-300/30"
+            class="pointer-events-none absolute left-1/2 top-1/2 h-16 w-16 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white"
           />
           <div
-            class="pointer-events-none absolute left-1/2 top-2 h-16 w-36 -translate-x-1/2 rounded-b-xl border border-emerald-300/30"
+            class="pointer-events-none absolute left-1/2 top-2 h-16 w-36 -translate-x-1/2 rounded-b-xl border border-white"
           />
           <div
-            class="pointer-events-none absolute bottom-2 left-1/2 h-16 w-36 -translate-x-1/2 rounded-t-xl border border-emerald-300/30"
+            class="pointer-events-none absolute bottom-2 left-1/2 h-16 w-36 -translate-x-1/2 rounded-t-xl border border-white"
           />
 
-          <div class="relative space-y-4">
+          <div class="relative space-y-5">
             <div
               v-for="line in startingLines"
               :key="line.key"
               class="flex justify-center"
             >
-              <div class="flex flex-wrap justify-center gap-3">
+              <div class="flex justify-center gap-3 md:gap-4">
                 <div
                   v-for="p in line.players"
                   :key="p.id"

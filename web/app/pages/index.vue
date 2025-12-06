@@ -1,15 +1,15 @@
 <template>
-  <main class="min-h-screen flex items-center justify-center bg-gray-100">
+  <main class="min-h-screen flex items-center justify-center">
     <section class="bg-white shadow-md rounded-lg p-8 w-full max-w-md space-y-6">
-      <h1 class="text-2xl font-bold text-center">FPL Playmaker</h1>
-      <p class="text-sm text-gray-600 text-center">
+      <h1 class="text-2xl font-bold text-center text-emerald-400">FPL Playmaker</h1>
+      <p class="text-md text-black font-bold text-center">
         Sign in to continue
       </p>
 
       <!-- Login form -->
       <form class="space-y-4" @submit.prevent="onSubmit">
         <div>
-          <label class="block text-sm font-medium mb-1" for="email">
+          <label class="block text-md font-medium mb-1 text-black" for="email">
             Email
           </label>
           <input
@@ -17,12 +17,12 @@
             v-model="email"
             type="email"
             required
-            class="w-full border rounded px-3 py-2 text-sm"
+            class="w-full border rounded px-3 py-2 text-sm text-black"
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium mb-1" for="password">
+          <label class="block text-md font-medium mb-1 text-black" for="password">
             Password
           </label>
           <input
@@ -30,7 +30,7 @@
             v-model="password"
             type="password"
             required
-            class="w-full border rounded px-3 py-2 text-sm"
+            class="w-full border rounded px-3 py-2 text-sm text-black"
           />
         </div>
 
@@ -49,7 +49,7 @@
       </form>
 
       <!-- Register link -->
-      <div class="pt-2 border-t text-center text-sm text-gray-600">
+      <div class="pt-2 border-t text-center text-md text-gray-900">
         <span>Don't have an account?</span>
         <NuxtLink to="/register" class="ml-1 text-blue-600 underline">
           Register
