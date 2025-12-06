@@ -26,7 +26,9 @@ import { useApi } from '../../composables/useApi'
 import type { FixtureTicker, TickerRow } from '../../types/fpl-common'
 import { difficultyBadgeColor } from '../../utils/fpl-ui'
 import { getClubLogoUrl } from '../../utils/fpl-logos'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const { get } = useApi()
 
 const UBadge = resolveComponent('UBadge')
@@ -179,6 +181,10 @@ const fetchTicker = async () => {
       events: 5,
     })
   } catch (e: any) {
+    if (e?.status === 401) {
+      router.push('/');
+      return;
+    }
     console.error('fetchTicker error:', e)
     error.value = e?.data?.message ?? 'Failed to load fixtures.'
   } finally {

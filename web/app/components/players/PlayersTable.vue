@@ -101,6 +101,7 @@
 <script setup lang="ts">
 import { h, onMounted, reactive, ref, computed, watch, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
+import { useRouter } from 'vue-router'
 import { useApi } from '../../composables/useApi'
 import { POSITION_OPTIONS, AVAILABILITY_OPTIONS } from '../../types/fpl-players'
 import type {
@@ -110,6 +111,8 @@ import type {
   AvailabilityFilter,
 } from '../../types/fpl-players'
 import { getClubLogoUrl } from '../../utils/fpl-logos'
+
+const router = useRouter()
 
 const positionOptions = POSITION_OPTIONS
 const statusOptions = AVAILABILITY_OPTIONS
@@ -378,6 +381,10 @@ const fetchPlayers = async () => {
     allPlayers.value = all
     page.value = 1
     } catch (e: any) {
+      if (e?.status === 401) {
+      router.push('/');
+      return;
+    }
       console.error('fetchPlayers error:', e)
       allPlayers.value = []
     error.value = e?.data?.message || e?.message || 'Failed to load players'

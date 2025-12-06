@@ -1,12 +1,12 @@
 <!-- web/app/pages/register.vue -->
 <template>
-  <main class="min-h-screen flex items-center justify-center bg-gray-100">
+  <main class="min-h-screen flex items-center justify-center">
     <section class="bg-white shadow-md rounded-lg p-8 w-full max-w-md space-y-6">
-      <h1 class="text-2xl font-bold text-center">Create an account</h1>
+      <h1 class="text-2xl font-bold text-center text-black">Register Account</h1>
 
       <form class="space-y-4" @submit.prevent="onRegister">
         <div>
-          <label class="block text-sm font-medium mb-1" for="email">
+          <label class="block text-md text-black font-medium mb-1" for="email">
             Email
           </label>
           <input
@@ -14,12 +14,12 @@
             v-model="email"
             type="email"
             required
-            class="w-full border rounded px-3 py-2 text-sm"
+            class="w-full border rounded px-3 py-2 text-sm text-black"
           />
         </div>
 
         <div>
-          <label class="block text-sm font-medium mb-1" for="password">
+          <label class="block text-md text-black font-medium mb-1" for="password">
             Password
           </label>
           <input
@@ -27,7 +27,7 @@
             v-model="password"
             type="password"
             required
-            class="w-full border rounded px-3 py-2 text-sm"
+            class="w-full border rounded px-3 py-2 text-sm text-black"
           />
         </div>
 
@@ -40,7 +40,7 @@
             v-model="passwordConfirm"
             type="password"
             required
-            class="w-full border rounded px-3 py-2 text-sm"
+            class="w-full border rounded px-3 py-2 text-sm text-black"
           />
         </div>
 
@@ -57,7 +57,7 @@
           <span v-else>Registering...</span>
         </button>
 
-        <div class="pt-2 text-center text-sm text-gray-600">
+        <div class="pt-2 border-t text-center text-md text-gray-900">
           <span>Already have an account?</span>
           <NuxtLink to="/" class="ml-1 text-blue-600 underline">
             Sign in
